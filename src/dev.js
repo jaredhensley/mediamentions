@@ -1,5 +1,7 @@
 const path = require('path');
 const { initializeDatabase, runQuery, databasePath } = require('./db');
+const defaultPublications = require('./data/defaultPublications');
+const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 function log(msg) {
   // eslint-disable-next-line no-console
@@ -7,6 +9,8 @@ function log(msg) {
 }
 
 function seedIfEmpty() {
+  seedDefaultPublications({ log });
+
   const [{ count: clientCount } = { count: 0 }] = runQuery('SELECT COUNT(*) as count FROM clients;');
   const [{ count: publicationCount } = { count: 0 }] = runQuery(
     'SELECT COUNT(*) as count FROM publications;',
@@ -26,10 +30,13 @@ function seedIfEmpty() {
     ['Example Client', 'press@example.com', now],
   );
 
-  const [publication] = runQuery(
-    'INSERT INTO publications (name, website, clientId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p3) RETURNING *;',
-    ['Tech Daily', 'https://techdaily.example', client.id, now],
-  );
+  const samplePublicationName = defaultPublications[0].name;
+  const [publication] =
+    runQuery('SELECT * FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [samplePublicationName]) || [];
+
+  if (!publication) {
+    throw new Error(`Expected default publication "${samplePublicationName}" to be seeded before sample data.`);
+  }
 
   runQuery(
     'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, link, clientId, publicationId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p6);',
@@ -37,7 +44,7 @@ function seedIfEmpty() {
       'Launch coverage',
       'Product',
       '2024-05-01',
-      'https://techdaily.example/launch',
+      defaultPublications[0].website || 'https://example.com/launch',
       client.id,
       publication.id,
       now,
