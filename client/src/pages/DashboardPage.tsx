@@ -1,14 +1,28 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, Grid, List, ListItem, ListItemText, Stack, Typography } from '@mui/material';
-import { mentions } from '../data';
+import { fetchMentions } from '../api';
+import { Mention } from '../data';
 
 export default function DashboardPage() {
+  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchMentions()
+      .then(setMentions)
+      .catch((err) => setError(err.message));
+  }, []);
+
   const today = new Date().toISOString().slice(0, 10);
-  const todaysMentions = mentions.filter((mention) => mention.date === today);
+  const todaysMentions = useMemo(
+    () => mentions.filter((mention) => mention.mentionDate.slice(0, 10) === today),
+    [mentions, today]
+  );
 
   const quickStats = [
     { label: 'Total mentions', value: mentions.length },
     { label: 'Today', value: todaysMentions.length },
-    { label: 'Positive', value: mentions.filter((m) => m.sentiment === 'positive').length },
+    { label: 'Published', value: mentions.filter((m) => m.status === 'published').length },
     { label: 'In review', value: mentions.filter((m) => m.status === 'in-review').length },
   ];
 
@@ -33,13 +47,17 @@ export default function DashboardPage() {
           <Typography variant="h6" gutterBottom>
             Today&apos;s mentions
           </Typography>
+          {error && <Typography color="error">{error}</Typography>}
           {todaysMentions.length === 0 ? (
             <Typography color="text.secondary">No mentions logged today.</Typography>
           ) : (
             <List>
               {todaysMentions.map((mention) => (
                 <ListItem key={mention.id} divider>
-                  <ListItemText primary={mention.title} secondary={`Sentiment: ${mention.sentiment} • Status: ${mention.status}`} />
+                  <ListItemText
+                    primary={mention.title}
+                    secondary={`Subject: ${mention.subjectMatter || 'N/A'} • Status: ${mention.status || 'N/A'}`}
+                  />
                 </ListItem>
               ))}
             </List>
