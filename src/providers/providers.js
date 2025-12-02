@@ -21,6 +21,26 @@ function getPublishedDate(item) {
   return new Date().toISOString();
 }
 
+function getPublishedDate(item) {
+  const metatags = item.pagemap?.metatags || [];
+  for (const tag of metatags) {
+    const candidate =
+      tag['article:published_time'] ||
+      tag['og:published_time'] ||
+      tag['article:modified_time'] ||
+      tag['og:updated_time'] ||
+      tag['pubdate'];
+
+    if (candidate) {
+      const parsed = new Date(candidate);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+  }
+  return new Date().toISOString();
+}
+
 async function googleSearch(query, { maxResults }) {
   if (!providerApiKeys.google) {
     throw new Error('Missing Google API key (set GOOGLE_API_KEY in your .env file)');
