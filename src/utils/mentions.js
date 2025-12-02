@@ -2,13 +2,15 @@ const { runQuery } = require('../db');
 
 function normalizeResult(result, client) {
   const domain = extractDomain(result.url);
-  const publication = domain || 'unknown';
+  const source = domain || 'Unknown source';
+  const sentiment = analyzeSentiment(result.title, result.snippet || '');
 
   return {
     ...result,
     clientId: client.id,
     clientName: client.name,
-    publication,
+    source,
+    sentiment,
     normalizedUrl: result.url.toLowerCase(),
     matchedPressReleaseId: null
   };
@@ -64,7 +66,7 @@ function recordMentions(results, status) {
       continue;
     }
 
-    const publicationId = ensurePublication(result.publication, result.url, publicationCache);
+    const publicationId = ensurePublication(result.source, publicationCache);
     if (!publicationId) {
       // eslint-disable-next-line no-continue
       continue;
@@ -74,12 +76,16 @@ function recordMentions(results, status) {
     const mentionDate = normalizeDate(result.publishedAt) || now;
 
     const [mention] = runQuery(
-      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, link, clientId, publicationId, pressReleaseId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p7) RETURNING *;',
+      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;',
       [
         result.title,
         result.snippet || status || 'Mention',
         mentionDate,
+        null,
         result.url,
+        result.source,
+        result.sentiment || null,
+        status,
         result.clientId,
         publicationId,
         result.matchedPressReleaseId || null,
@@ -100,7 +106,7 @@ function normalizeDate(value) {
   return parsed.toISOString();
 }
 
-function ensurePublication(domain, url, cache) {
+function ensurePublication(domain, cache) {
   const cacheKey = domain || 'unknown';
   if (cache.has(cacheKey)) {
     return cache.get(cacheKey);
@@ -112,23 +118,35 @@ function ensurePublication(domain, url, cache) {
         'SELECT id FROM publications WHERE LOWER(website) LIKE LOWER(@p0) OR LOWER(name) = LOWER(@p1) LIMIT 1;',
         [websitePattern, domain]
       ) || []
-    : runQuery('SELECT id FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', ['Unknown publication']) || [];
+    : [];
 
   if (existing && existing.id) {
     cache.set(cacheKey, existing.id);
     return existing.id;
   }
 
-  const now = new Date().toISOString();
-  const name = domain || 'Unknown publication';
-  const website = domain ? `https://${domain}` : url;
-  const [created] = runQuery(
-    'INSERT INTO publications (name, website, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
-    [name, website, now]
-  );
+  const [unknown] =
+    runQuery('SELECT id FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', ['unknown source']) || [];
 
-  cache.set(cacheKey, created.id);
-  return created.id;
+  if (unknown && unknown.id) {
+    cache.set(cacheKey, unknown.id);
+    return unknown.id;
+  }
+
+  return null;
+}
+
+function analyzeSentiment(title, snippet) {
+  const text = `${title} ${snippet}`.toLowerCase();
+  const positives = ['good', 'great', 'positive', 'growth', 'success', 'win', 'expands', 'improves'];
+  const negatives = ['bad', 'decline', 'negative', 'loss', 'drop', 'lawsuit', 'fails', 'cuts'];
+
+  const positiveHits = positives.some((word) => text.includes(word));
+  const negativeHits = negatives.some((word) => text.includes(word));
+
+  if (positiveHits && !negativeHits) return 'positive';
+  if (negativeHits && !positiveHits) return 'negative';
+  return 'neutral';
 }
 
 module.exports = {

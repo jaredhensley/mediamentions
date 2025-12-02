@@ -54,6 +54,19 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
+function formatDisplayDate(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 function buildExcelXml(rows) {
   const header = `<?xml version="1.0"?>
   <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -63,18 +76,18 @@ function buildExcelXml(rows) {
     <Worksheet ss:Name="Media Mentions">
       <Table>`;
   const footer = '</Table></Worksheet></Workbook>';
-  const columns = ['Date', 'Publication', 'Title', 'Subject Matter', 'Re-Mention Date', 'Link'];
+  const columns = ['Date', 'Source', 'Title', 'Subject Matter', 'Re-Mention Date', 'Link'];
   const headerRow = `<Row>${columns
     .map((title) => `<Cell><Data ss:Type="String">${escapeXml(title)}</Data></Cell>`)
     .join('')}</Row>`;
   const dataRows = rows
     .map((row) => {
       const cells = [
-        row.mentionDate || '',
-        row.publication || '',
+        formatDisplayDate(row.mentionDate) || '',
+        row.source || '',
         row.title || '',
         row.subjectMatter || '',
-        row.reMentionDate || '',
+        formatDisplayDate(row.reMentionDate) || '',
         row.link || '',
       ];
       return `<Row>${cells
@@ -394,14 +407,17 @@ async function createMediaMention(req, res) {
     }
     const now = new Date().toISOString();
     const [mention] = runQuery(
-      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
-       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p8) RETURNING *;`,
+      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
+       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;`,
       [
         body.title,
         body.subjectMatter || '',
         body.mentionDate,
         body.reMentionDate || null,
         body.link || '',
+        body.source || null,
+        body.sentiment || null,
+        body.status || 'new',
         body.clientId,
         body.publicationId,
         body.pressReleaseId || null,
@@ -441,6 +457,9 @@ async function updateMediaMention(req, res, params) {
     'mentionDate',
     'reMentionDate',
     'link',
+    'source',
+    'sentiment',
+    'status',
     'clientId',
     'publicationId',
     'pressReleaseId',
@@ -657,7 +676,7 @@ async function exportMentions(_req, res, params) {
   }
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const rows = runQuery(
-    `SELECT mm.mentionDate, p.name as publication, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
+    `SELECT mm.mentionDate, COALESCE(mm.source, p.name) as source, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
      FROM mediaMentions mm
      LEFT JOIN publications p ON mm.publicationId = p.id
      ${whereClause}

@@ -28,8 +28,10 @@ const providerConfig = {
 const searchConfig = {
   scheduleTime: DEFAULT_SCHEDULE_TIME,
   providers: ['google'],
-  maxResultsPerProvider: Number(process.env.MAX_RESULTS_PER_PROVIDER || 10),
-  mentionStatus: 'unverified'
+  maxResultsPerProvider: Number.isFinite(Number(process.env.MAX_RESULTS_PER_PROVIDER))
+    ? Number(process.env.MAX_RESULTS_PER_PROVIDER)
+    : Infinity,
+  mentionStatus: 'new'
 };
 
 module.exports = {

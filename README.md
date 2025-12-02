@@ -66,6 +66,8 @@ JSON endpoints cover CRUD for core entities plus an Excel-compatible export:
 
 Exports return SpreadsheetML XML without external dependencies. Error responses are JSON.
 
+Provider results never create new publication records; the publications list stays static aside from deliberate user edits. Mentions will fall back to an “Unknown Source” entry when no matching publication exists.
+
 ## Running the scheduler
 The scheduler runs daily provider queries for each active press release and records unverified mentions.
 

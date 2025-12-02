@@ -24,6 +24,7 @@ import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications } fr
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
+import { formatDisplayDate } from '../utils/format';
 
 export default function ClientsPage() {
   const [clientList, setClientList] = useState<Client[]>([]);
@@ -250,7 +251,7 @@ export default function ClientsPage() {
                     <TableHead>
                       <TableRow>
                         <TableCell>Title</TableCell>
-                        <TableCell>Publication</TableCell>
+                        <TableCell>Source</TableCell>
                         <TableCell>Sentiment</TableCell>
                         <TableCell>Status</TableCell>
                         <TableCell>Date</TableCell>
@@ -259,13 +260,21 @@ export default function ClientsPage() {
                     <TableBody>
                       {clientMentions.map((mention) => (
                         <TableRow key={mention.id}>
-                          <TableCell>{mention.title}</TableCell>
-                          <TableCell>{publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
+                          <TableCell>
+                            {mention.link ? (
+                              <a href={mention.link} target="_blank" rel="noreferrer noopener">
+                                {mention.title}
+                              </a>
+                            ) : (
+                              mention.title
+                            )}
+                          </TableCell>
+                          <TableCell>{mention.source || publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
                           <TableCell>
                             <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
                           </TableCell>
                           <TableCell>{mention.status}</TableCell>
-                          <TableCell>{mention.mentionDate}</TableCell>
+                          <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
