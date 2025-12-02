@@ -1,13 +1,29 @@
 const { randomUUID } = require('crypto');
-const { clients, pressReleases, searchJobs } = require('../data/store');
+const { clients: demoClients, searchJobs } = require('../data/store');
+const { runQuery } = require('../db');
 const { providerLookup } = require('../providers/providers');
 const { searchConfig } = require('../config');
 const { normalizeResult, dedupeMentions, associatePressRelease, recordMentions } = require('../utils/mentions');
 
 function buildQueries(client, activePressReleases) {
-  const base = client.keywords.join(' ');
+  const base = client.name;
   const perRelease = activePressReleases.map((release) => `${client.name} ${release.title}`);
   return [base, ...perRelease];
+}
+
+function hydratePressReleasesForClient(client) {
+  const rows = runQuery('SELECT id, title FROM pressReleases WHERE clientId=@p0;', [client.id]);
+  if (!rows.length) {
+    return [];
+  }
+  return rows.map((release) => ({ ...release, keywords: [release.title || client.name] }));
+}
+
+function loadClients() {
+  const rows = runQuery('SELECT id, name FROM clients ORDER BY id;');
+  return rows.length
+    ? rows
+    : demoClients.map((client) => ({ ...client, keywords: client.keywords || [client.name] }));
 }
 
 async function runProvider(providerName, query, jobLog) {
@@ -40,12 +56,9 @@ async function runSearchJob() {
   };
   searchJobs.push(jobLog);
 
-  const activeClients = clients;
+  const activeClients = loadClients();
   for (const client of activeClients) {
-    const activePressReleases = pressReleases.filter((release) => release.clientId === client.id && release.active);
-    if (!activePressReleases.length) {
-      continue;
-    }
+    const activePressReleases = hydratePressReleasesForClient(client);
     const queries = buildQueries(client, activePressReleases);
     const providerResults = [];
 

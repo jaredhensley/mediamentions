@@ -2,10 +2,20 @@ const http = require('http');
 const { initializeDatabase, runQuery } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
+const { scheduleDailySearch } = require('./services/scheduler');
 
 initializeDatabase();
 seedDefaultClients();
 seedDefaultPublications();
+
+// Kick off scheduled searches and run one immediately to populate mentions.
+(async () => {
+  try {
+    await scheduleDailySearch({ runImmediately: true });
+  } catch (err) {
+    console.error('[scheduler] failed to start search scheduler', err);
+  }
+})();
 
 const PORT = process.env.PORT || 3000;
 
