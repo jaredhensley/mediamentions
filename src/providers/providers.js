@@ -1,16 +1,25 @@
 const { randomUUID } = require('crypto');
 const { providerApiKeys, providerConfig } = require('../config');
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function getPublishedDate(item) {
+  const metatags = item.pagemap?.metatags || [];
+  for (const tag of metatags) {
+    const candidate =
+      tag['article:published_time'] ||
+      tag['og:published_time'] ||
+      tag['article:modified_time'] ||
+      tag['og:updated_time'] ||
+      tag['pubdate'];
 
-const makeResult = (provider, query, domainSuffix = 'news.example.com') => ({
-  id: randomUUID(),
-  title: `${provider.toUpperCase()} result for ${query}`,
-  url: `https://${provider}.${domainSuffix}/${encodeURIComponent(query)}`,
-  snippet: `${provider} found coverage about ${query}.`,
-  publishedAt: new Date().toISOString(),
-  provider
-});
+    if (candidate) {
+      const parsed = new Date(candidate);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+  }
+  return new Date().toISOString();
+}
 
 function getPublishedDate(item) {
   const metatags = item.pagemap?.metatags || [];
@@ -84,43 +93,8 @@ async function googleSearch(query, { maxResults }) {
   }));
 }
 
-async function bingSearch(query, { maxResults }) {
-  if (!providerApiKeys.bing) {
-    throw new Error('Missing Bing API key');
-  }
-  await delay(50);
-  return Array.from({ length: Math.max(1, Math.min(2, maxResults)) }, (_, idx) =>
-    makeResult('bing', `${query}-${idx}`, 'bingnews.example.com')
-  );
-}
-
-async function customApiSearch(query, { maxResults }) {
-  if (!providerApiKeys.customApi) {
-    throw new Error('Missing custom API key');
-  }
-  await delay(30);
-  return [makeResult('api', query, 'wire.example.com')].slice(0, maxResults);
-}
-
-async function inboxSearch(query, { maxResults }) {
-  if (!providerApiKeys.inbox) {
-    throw new Error('Missing inbox token');
-  }
-  await delay(20);
-  return [
-    {
-      ...makeResult('inbox', query, 'mail.example.com'),
-      snippet: 'Found mention in monitored inbox',
-      url: `mailto:${encodeURIComponent(query)}@mail.example.com`
-    }
-  ].slice(0, maxResults);
-}
-
 const providerLookup = {
-  google: googleSearch,
-  bing: bingSearch,
-  customApi: customApiSearch,
-  inbox: inboxSearch
+  google: googleSearch
 };
 
 module.exports = {

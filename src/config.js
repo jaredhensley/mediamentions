@@ -17,10 +17,7 @@ const googleSearchEngineId = cleanEnv(process.env.GOOGLE_CSE_ID);
 const googleReferer = cleanEnv(process.env.GOOGLE_REFERER);
 
 const providerApiKeys = {
-  google: cleanEnv(process.env.GOOGLE_API_KEY),
-  bing: cleanEnv(process.env.BING_API_KEY) || 'demo-bing-key',
-  customApi: cleanEnv(process.env.CUSTOM_SEARCH_KEY) || 'demo-custom-key',
-  inbox: cleanEnv(process.env.INBOX_TOKEN) || 'demo-inbox-token'
+  google: cleanEnv(process.env.GOOGLE_API_KEY)
 };
 
 const providerConfig = {
@@ -30,7 +27,7 @@ const providerConfig = {
 
 const searchConfig = {
   scheduleTime: DEFAULT_SCHEDULE_TIME,
-  providers: ['google', 'customApi', 'inbox'],
+  providers: ['google'],
   maxResultsPerProvider: Number(process.env.MAX_RESULTS_PER_PROVIDER || 10),
   mentionStatus: 'unverified'
 };
