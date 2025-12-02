@@ -37,10 +37,32 @@ function getNextRunDate(task) {
 function logNextRun(task) {
   try {
     const next = getNextRunDate(task);
-    const nextDate = typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
+
+    // If this scheduler doesn't support next run calculation
+    // and getNextRunDate returns null/undefined, just skip logging.
+    if (!next) {
+      // Optional: uncomment if you want a low-noise info log instead of silence:
+      // console.log('[scheduler] next run time not available for this scheduler');
+      return;
+    }
+
+    const nextDate =
+      typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
+
     console.log(`[scheduler] next run scheduled for ${nextDate.toISOString()}`);
   } catch (err) {
-    console.warn('[scheduler] unable to compute next run time', err.message);
+    const msg = err && err.message ? err.message : String(err);
+
+    // For known/expected cases where the scheduled task doesn't expose
+    // a next run calculation API (e.g., node-cron Task), do not warn.
+    if (msg.includes('does not expose next run calculation')) {
+      // Optional: uncomment if you want a low-noise info log:
+      // console.log('[scheduler] next run time not available for this scheduler');
+      return;
+    }
+
+    // Only warn on truly unexpected errors.
+    console.warn('[scheduler] unable to compute next run time', msg);
   }
 }
 
