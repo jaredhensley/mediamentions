@@ -20,6 +20,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications } from '../api';
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
@@ -38,12 +39,12 @@ export default function ClientsPage() {
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState({ name: '', notes: '' });
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     fetchClients()
       .then((data) => {
         setClientList(data);
-        setSelectedClientId(data[0]?.id || '');
       })
       .catch((err) => setError(err.message));
     fetchMentions()
@@ -56,6 +57,22 @@ export default function ClientsPage() {
       .then(setPublicationList)
       .catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (!clientList.length) return;
+    const paramId = Number(searchParams.get('clientId'));
+    if (paramId && clientList.some((c) => c.id === paramId)) {
+      setSelectedClientId(paramId);
+    } else if (!selectedClientId) {
+      setSelectedClientId(clientList[0]?.id || '');
+    }
+  }, [clientList, searchParams, selectedClientId]);
+
+  useEffect(() => {
+    if (selectedClientId) {
+      setSearchParams({ clientId: String(selectedClientId) });
+    }
+  }, [selectedClientId, setSearchParams]);
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
 
@@ -102,7 +119,7 @@ export default function ClientsPage() {
   };
 
   const handleExport = async () => {
-    const endpoint = `/api/clients/${selectedClientId}/mentions/export`;
+    const endpoint = `/clients/${selectedClientId}/mentions/export`;
     const response = await fetch(endpoint);
     if (!response.ok) {
       alert('Export failed');
