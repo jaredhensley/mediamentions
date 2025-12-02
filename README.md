@@ -3,7 +3,7 @@
 A lightweight media monitoring playground that includes:
 
 - A Node.js HTTP API that stores clients, publications, press releases, media mentions, and feedback summaries in SQLite.
-- A scheduler that runs simple provider simulations to create daily media mentions for active press releases.
+- A scheduler that runs provider lookups (Google Custom Search) to create daily media mentions for active press releases.
 - A React + Vite frontend located in `client/`.
 
 The backend uses the `sqlite3` CLI directly (no ORM) and can bootstrap a database with sample data when running in developer mode.
@@ -42,7 +42,7 @@ The API starts an HTTP server on port 3000 by default and will create the SQLite
 
   Set `SKIP_DEV_SEED=1` to start without inserting demo records.
 
-- Start the API without the dev helper (top-tier publications and core clients are still seeded on first run for convenience):
+- Start the API without the dev helper (top-tier publications and core clients are still seeded on first run for convenience). The search scheduler also boots automatically and runs once at startup to populate mentions:
 
   ```bash
   npm start
@@ -67,7 +67,7 @@ JSON endpoints cover CRUD for core entities plus an Excel-compatible export:
 Exports return SpreadsheetML XML without external dependencies. Error responses are JSON.
 
 ## Running the scheduler
-The scheduler simulates daily provider queries for each active press release and records unverified mentions.
+The scheduler runs daily provider queries for each active press release and records unverified mentions.
 
 - Run once and exit:
 
@@ -84,8 +84,12 @@ The scheduler simulates daily provider queries for each active press release and
 Scheduler configuration (defaults are in `src/config.js`):
 
 - `SCHEDULE_TIME` – Daily run time in 24h `HH:MM` format (default: `03:00`).
-- `GOOGLE_API_KEY`, `BING_API_KEY`, `CUSTOM_SEARCH_KEY`, `INBOX_TOKEN` – Stub keys used by provider simulations.
+- `GOOGLE_API_KEY` – Server-side API key for Google Custom Search (required for real Google lookups).
+- `GOOGLE_CSE_ID` – Custom Search Engine identifier that scopes Google results (required for Google lookups).
+- `GOOGLE_REFERER` – Optional HTTP referer header to satisfy restricted Google API keys (e.g., `http://localhost:3000`).
 - `MAX_RESULTS_PER_PROVIDER` – Cap on results fetched per provider (default: `10`).
+
+Copy `.env.example` to `.env` (or `.env.local`) and populate the Google variables **without wrapping them in quotes** to enable live Google queries. If your Google key is restricted to HTTP referrers, set `GOOGLE_REFERER` to a value allowed by the key (for local development, `http://localhost:3000` typically works). Environment files are gitignored (with `.env.example` kept for reference) so keys stay out of version control. The runtime automatically loads the `.env` file, so you can restart the scheduler or API after editing—no extra wiring is needed. The Google provider requests results from the last 24 hours using the Custom Search `dateRestrict=d1` parameter and caps results according to `MAX_RESULTS_PER_PROVIDER`.
 
 ## Frontend (`client/`)
 The React SPA expects the backend routes above. During development, proxy API calls to the Node server from the Vite dev server:
