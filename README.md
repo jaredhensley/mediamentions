@@ -95,6 +95,18 @@ The UI renders data that comes from the backend APIs. Use the following concrete
    - Visit the Vite dev URL (default `http://localhost:5173`). The “Clients” page can now add mentions locally and the “Export” button will hit the backend because `/api/clients/:id/mentions/export` is forwarded through the proxy.
 
 If you prefer to avoid a proxy, you can also run `npm run build` in `client/` and serve the static `client/dist` output from any web server that forwards `/api` requests to the Node process on port 3000.
+
+### Inspecting the SQLite database in DB Browser for SQLite
+
+Use DB Browser for SQLite to view the generated database file while the app is running or after it has created data.
+
+1. Start the backend once so it creates the database at the configured `DATABASE_URL` (defaults to `./data/mediamentions.db`).
+2. Open DB Browser for SQLite (downloadable from https://sqlitebrowser.org/).
+3. Choose **File → Open Database...** and select the `data/mediamentions.db` file from the repository root.
+4. Navigate to the **Browse Data** tab to inspect tables like `clients`, `publications`, and `media_mentions`. Use the **Execute SQL** tab to run ad hoc queries if needed.
+
+If you override `DATABASE_URL`, open that file instead; DB Browser will follow the full path.
+
 # Mentions
 
 This repository hosts a lightweight Node.js HTTP server at the repository root and a React single-page application in the `client/` workspace. Use this layout to keep backend and frontend dependencies separated while sharing a single git repository.
