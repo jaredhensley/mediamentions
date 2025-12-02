@@ -13,6 +13,7 @@ function cleanEnv(value) {
 }
 
 const DEFAULT_SCHEDULE_TIME = process.env.SCHEDULE_TIME || '03:00';
+const googleSearchEngineId = cleanEnv(process.env.GOOGLE_CSE_ID);
 
 const providerApiKeys = {
   google: cleanEnv(process.env.GOOGLE_API_KEY),
@@ -22,11 +23,7 @@ const providerApiKeys = {
 };
 
 const providerConfig = {
-  googleSearchEngineId: cleanEnv(process.env.GOOGLE_CSE_ID)
-};
-
-const providerConfig = {
-  googleSearchEngineId: process.env.GOOGLE_CSE_ID
+  googleSearchEngineId
 };
 
 const searchConfig = {
