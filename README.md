@@ -13,6 +13,9 @@ npm install
 
 3. Configure schedule and API keys via environment variables (optional) and run the tracking job.
 
+> Note: when you start the backend locally, a `.env` file is generated automatically from `.env.example` (respecting any
+> environment variables you already exported) so you don't have to manually create one for development.
+
 ### Configuration
 
 | Variable | Purpose | Default |
@@ -39,6 +42,59 @@ npm start
 ```
 
 Provider errors are logged on the job record but do not stop the pipeline from querying subsequent sources.
+
+## End-to-end local example (DB + backend + UI)
+
+The UI renders data that comes from the backend APIs. Use the following concrete steps to make sure SQLite, the Node server, and the Vite app talk to each other:
+
+1. **Install dependencies**
+   - From the repo root (backend): `npm install`
+   - From `client/` (frontend): `cd client && npm install`
+2. **Configure the backend**
+   - Start the API server from the repo root. It will create the SQLite file and schema if missing, and will also create a
+     `.env` (if one doesn't exist) that prefers any existing environment variables and falls back to `.env.example` defaults:
+     ```bash
+     npm start
+     ```
+3. **Seed a bit of data so the UI has something to render**
+   - The backend now auto-seeds three real media mentions for "Acme Robotics" the first time it finds an empty database in
+     development. You can add more via the running API if you like:
+     ```bash
+     curl -X POST http://localhost:3000/clients \
+       -H 'Content-Type: application/json' \
+       -d '{"name":"Example Client","contactEmail":"press@example.com"}'
+
+     curl -X POST http://localhost:3000/publications \
+       -H 'Content-Type: application/json' \
+       -d '{"name":"Tech Daily","website":"https://techdaily.example","clientId":1}'
+
+     curl -X POST http://localhost:3000/media-mentions \
+       -H 'Content-Type: application/json' \
+       -d '{"title":"Launch coverage","subjectMatter":"Product","mentionDate":"2024-05-01","link":"https://techdaily.example/launch","clientId":1,"publicationId":1}'
+     ```
+4. **Proxy frontend API calls to the backend during development**
+   - Add a dev proxy to `client/vite.config.ts` so `/api` calls from the browser go to the Node server when running `npm run dev`:
+     ```ts
+     import { defineConfig } from 'vite';
+     import react from '@vitejs/plugin-react';
+
+     export default defineConfig({
+       plugins: [react()],
+       server: {
+         proxy: {
+           '/api': 'http://localhost:3000',
+           '/clients': 'http://localhost:3000',
+           '/publications': 'http://localhost:3000',
+           '/media-mentions': 'http://localhost:3000',
+         },
+       },
+     });
+     ```
+   - Restart the Vite dev server after saving the proxy settings: `cd client && npm run dev`
+5. **Open the app**
+   - Visit the Vite dev URL (default `http://localhost:5173`). The “Clients” page can now add mentions locally and the “Export” button will hit the backend because `/api/clients/:id/mentions/export` is forwarded through the proxy.
+
+If you prefer to avoid a proxy, you can also run `npm run build` in `client/` and serve the static `client/dist` output from any web server that forwards `/api` requests to the Node process on port 3000.
 # Mentions
 
 This repository hosts a lightweight Node.js HTTP server at the repository root and a React single-page application in the `client/` workspace. Use this layout to keep backend and frontend dependencies separated while sharing a single git repository.
@@ -54,6 +110,9 @@ Set these environment variables (or rely on defaults):
 - `PORT` – Port to bind the HTTP server. Defaults to `3000`.
 - `DATABASE_URL` – Path to the SQLite database file. Defaults to `./data/mediamentions.db`.
 
+> The server automatically copies `.env.example` to `.env` on first boot (merging in any variables you've already exported) so
+> local development works without manual configuration.
+
 ### Running locally
 
 1. Ensure Node.js 22+ and the `sqlite3` CLI are available in your shell (both are present in the container).
@@ -64,6 +123,9 @@ Set these environment variables (or rely on defaults):
    ```
 
    The server initializes the schema on first boot.
+3. Development seeding: when `NODE_ENV` is anything other than `production` (the default when you run `npm start`), the server
+   seeds the database with real media mentions for "Acme Robotics" the first time it finds an empty database. Set
+   `AUTO_SEED=false` to skip this behavior or point `DATABASE_URL` at a separate file if you want a clean database.
 
 ### API overview
 

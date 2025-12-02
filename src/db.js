@@ -1,7 +1,14 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
-const databasePath = process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
+const { config } = require('./config');
+
+const databasePath = config.databasePath;
+const databaseDir = path.dirname(databasePath);
+if (!fs.existsSync(databaseDir)) {
+  fs.mkdirSync(databaseDir, { recursive: true });
+}
 
 function buildArgs(sql, params, asJson = true) {
   const args = [databasePath];
