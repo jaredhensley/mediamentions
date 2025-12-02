@@ -40,48 +40,25 @@ export const publications: Publication[] = [
 ];
 
 export const clients: Client[] = [
-  { id: 'client-1', name: 'Acme Robotics', industry: 'Robotics', notes: 'Focus on B2B manufacturing coverage.' },
-  { id: 'client-2', name: 'GreenTech', industry: 'Clean Energy', notes: 'Highlight sustainability metrics.' },
+  { id: 'client-1', name: 'Bushwick Commission', industry: 'Produce', notes: 'Bushwick- Bushwick Commission' },
+  { id: 'client-2', name: 'Colombia Avocado Board', industry: 'Produce', notes: 'CAB- Colombia Avocado Board' },
+  { id: 'client-3', name: 'Dakota Angus', industry: 'Beef', notes: 'Dakota Angus' },
+  { id: 'client-4', name: 'Equitable Food Initiative', industry: 'Certification', notes: 'EFI – Equitable Food Initiative' },
+  { id: 'client-5', name: 'Full Tilt Marketing', industry: 'Marketing', notes: 'FTM - Full Tilt Marketing' },
+  { id: 'client-6', name: 'G&R Farms', industry: 'Produce', notes: 'G&R Farms' },
+  { id: 'client-7', name: 'Michigan Asparagus Advisory Board', industry: 'Produce', notes: 'MAAB - Michigan Asparagus Advisory Board' },
+  {
+    id: 'client-8',
+    name: 'North Carolina Sweetpotato Commission',
+    industry: 'Produce',
+    notes: 'NCSC - North Carolina Sweetpotato Commision'
+  },
+  { id: 'client-9', name: 'North Dakota 250', industry: 'Agriculture', notes: 'ND250- North Dakota 250' },
+  { id: 'client-10', name: 'Todd Greiner Farms', industry: 'Produce', notes: 'Todd Greiner Farms' },
+  { id: 'client-11', name: 'South Texas Onion Committee', industry: 'Produce', notes: 'STOC- South Texas Onion Committee' },
+  { id: 'client-12', name: 'Texas Watermelon Association', industry: 'Produce', notes: 'TWA- Texas Watermelon Association' },
 ];
 
-export const pressReleases: PressRelease[] = [
-  { id: 'pr-1', clientId: 'client-1', title: 'Acme Robotics launches new cobot line', date: '2024-08-15', status: 'sent', body: 'Acme introduces collaborative robots for assembly lines.' },
-  { id: 'pr-2', clientId: 'client-1', title: 'Acme partners with MegaCorp', date: '2024-09-01', status: 'scheduled', body: 'New partnership announcement.' },
-  { id: 'pr-3', clientId: 'client-2', title: 'GreenTech raises Series C', date: '2024-08-10', status: 'draft', body: 'Funding round led by Clean Capital.' },
-];
+export const pressReleases: PressRelease[] = [];
 
-export const mentions: Mention[] = [
-  {
-    id: 'mention-1',
-    title: 'Acme Robotics disrupts factory automation',
-    date: '2024-09-20',
-    publicationId: 'pub-1',
-    sentiment: 'positive',
-    status: 'published',
-    summary: 'Profile of Acme Robotics new cobots.',
-    clientId: 'client-1',
-    pressReleaseId: 'pr-1',
-  },
-  {
-    id: 'mention-2',
-    title: 'Sustainability leaders of 2024',
-    date: '2024-09-22',
-    publicationId: 'pub-2',
-    sentiment: 'positive',
-    status: 'published',
-    summary: 'GreenTech featured for clean energy impact.',
-    clientId: 'client-2',
-    pressReleaseId: 'pr-3',
-  },
-  {
-    id: 'mention-3',
-    title: 'Automation market outlook',
-    date: '2024-09-23',
-    publicationId: 'pub-3',
-    sentiment: 'neutral',
-    status: 'in-review',
-    summary: 'Analyst note referencing Acme partnership.',
-    clientId: 'client-1',
-    pressReleaseId: 'pr-2',
-  },
-];
+export const mentions: Mention[] = [];
