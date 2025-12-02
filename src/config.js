@@ -25,6 +25,10 @@ const providerConfig = {
   googleSearchEngineId: cleanEnv(process.env.GOOGLE_CSE_ID)
 };
 
+const providerConfig = {
+  googleSearchEngineId: process.env.GOOGLE_CSE_ID
+};
+
 const searchConfig = {
   scheduleTime: DEFAULT_SCHEDULE_TIME,
   providers: ['google', 'customApi', 'inbox'],
