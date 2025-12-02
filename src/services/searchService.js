@@ -1,13 +1,18 @@
 const { randomUUID } = require('crypto');
 const { clients: demoClients, searchJobs } = require('../data/store');
+const { getSearchProfile } = require('../data/clientSearchProfiles');
 const { runQuery } = require('../db');
 const { providerLookup } = require('../providers/providers');
 const { searchConfig } = require('../config');
 const { normalizeResult, dedupeMentions, associatePressRelease, recordMentions } = require('../utils/mentions');
+const { buildSearchRequest } = require('../utils/searchQueries');
+const { filterResultsForClient } = require('../utils/searchFilters');
 
-function buildQueries(client, activePressReleases) {
-  const base = client.name;
-  const perRelease = activePressReleases.map((release) => `${client.name} ${release.title}`);
+function buildQueries(client, profile, activePressReleases) {
+  const base = buildSearchRequest(client, profile);
+  const perRelease = activePressReleases.map((release) =>
+    buildSearchRequest(client, profile, { extraPhrases: [release.title], label: `press:${release.title}` })
+  );
   return [base, ...perRelease];
 }
 
@@ -26,16 +31,19 @@ function loadClients() {
     : demoClients.map((client) => ({ ...client, keywords: client.keywords || [client.name] }));
 }
 
-async function runProvider(providerName, query, jobLog) {
+async function runProvider(providerName, searchRequest, jobLog) {
   const provider = providerLookup[providerName];
   if (!provider) {
     throw new Error(`Unknown provider: ${providerName}`);
   }
+  const query = typeof searchRequest === 'string' ? searchRequest : searchRequest.query;
+  const label = typeof searchRequest === 'object' ? searchRequest.label : null;
+  const logLabel = label ? `${label} | ${query}` : query;
   try {
-    console.log(`[providers] ${providerName} → searching for "${query}"`);
-    const results = await provider(query, { maxResults: searchConfig.maxResultsPerProvider });
-    jobLog.providerRuns.push({ provider: providerName, query, status: 'success', results: results.length });
-    console.log(`[providers] ${providerName} ✓ returned ${results.length} results for "${query}"`);
+    console.log(`[providers] ${providerName} → searching for "${logLabel}"`);
+    const results = await provider(searchRequest, { maxResults: searchConfig.maxResultsPerProvider });
+    jobLog.providerRuns.push({ provider: providerName, query, label, status: 'success', results: results.length });
+    console.log(`[providers] ${providerName} ✓ returned ${results.length} results for "${logLabel}"`);
     return results;
   } catch (err) {
     console.warn(`[providers] ${providerName} ✗ failed for "${query}": ${err.message}`);
@@ -58,14 +66,16 @@ async function runSearchJob() {
 
   const activeClients = loadClients();
   for (const client of activeClients) {
+    const profile = getSearchProfile(client);
     const activePressReleases = hydratePressReleasesForClient(client);
-    const queries = buildQueries(client, activePressReleases);
+    const queries = buildQueries(client, profile, activePressReleases);
     const providerResults = [];
 
     for (const providerName of searchConfig.providers) {
-      for (const query of queries) {
-        const results = await runProvider(providerName, query, jobLog);
-        results.forEach((result) => providerResults.push(normalizeResult(result, client)));
+      for (const searchRequest of queries) {
+        const results = await runProvider(providerName, searchRequest, jobLog);
+        const filtered = filterResultsForClient(results, profile, client);
+        filtered.forEach((result) => providerResults.push(normalizeResult(result, client)));
       }
     }
 

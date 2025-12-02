@@ -153,5 +153,6 @@ module.exports = {
   normalizeResult,
   dedupeMentions,
   associatePressRelease,
-  recordMentions
+  recordMentions,
+  extractDomain
 };

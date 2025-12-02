@@ -21,13 +21,16 @@ function getPublishedDate(item) {
   return new Date().toISOString();
 }
 
-async function googleSearch(query, { maxResults }) {
+async function googleSearch(searchRequest, { maxResults }) {
   if (!providerApiKeys.google) {
     throw new Error('Missing Google API key (set GOOGLE_API_KEY in your .env file)');
   }
   if (!providerConfig.googleSearchEngineId) {
     throw new Error('Missing Google Custom Search Engine ID (set GOOGLE_CSE_ID in your .env file)');
   }
+
+  const query = typeof searchRequest === 'string' ? searchRequest : searchRequest.query;
+  const exactTerms = typeof searchRequest === 'object' ? searchRequest.exactTerms : null;
 
   const allResults = [];
   const headers = {};
@@ -50,6 +53,10 @@ async function googleSearch(query, { maxResults }) {
       start: String(start),
       dateRestrict: 'd1'
     });
+
+    if (exactTerms) {
+      params.set('exactTerms', exactTerms);
+    }
 
     const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
     const response = await fetch(url, { headers });
