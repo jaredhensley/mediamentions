@@ -50,7 +50,13 @@ async function googleSearch(query, { maxResults }) {
   });
 
   const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
-  const response = await fetch(url);
+  const headers = {};
+
+  if (providerConfig.googleReferer) {
+    headers.Referer = providerConfig.googleReferer;
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`;
