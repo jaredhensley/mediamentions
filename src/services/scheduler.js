@@ -3,6 +3,8 @@ const cron = require('node-cron');
 const { runSearchJob } = require('./searchService');
 const { searchConfig } = require('../config');
 
+const TIMEZONE = 'UTC';
+
 function parseSchedule(timeString) {
   const [hours, minutes] = timeString.split(':').map(Number);
   if (
@@ -22,22 +24,30 @@ function cronExpressionFromSchedule(schedule) {
   return `${schedule.minutes} ${schedule.hours} * * *`;
 }
 
-function getNextRunDate(task) {
-  if (typeof task.nextDates === 'function') {
-    return task.nextDates();
+function computeNextRun(schedule) {
+  const now = new Date();
+  const next = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      schedule.hours,
+      schedule.minutes,
+      0,
+      0
+    )
+  );
+
+  if (next <= now) {
+    next.setUTCDate(next.getUTCDate() + 1);
   }
 
-  if (typeof task.getNextDates === 'function') {
-    return task.getNextDates();
-  }
-
-  throw new Error('Scheduled task does not expose next run calculation');
+  return next;
 }
 
-function logNextRun(task) {
+function logNextRun(schedule) {
   try {
-    const next = getNextRunDate(task);
-    const nextDate = typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
+    const nextDate = computeNextRun(schedule);
     console.log(`[scheduler] next run scheduled for ${nextDate.toISOString()}`);
   } catch (err) {
     console.warn('[scheduler] unable to compute next run time', err.message);
@@ -54,17 +64,17 @@ async function scheduleDailySearch({ runImmediately = false } = {}) {
     async () => {
       console.log(`[scheduler] starting tracking run at ${new Date().toISOString()}`);
       await runSearchJob();
-      logNextRun(task);
+      logNextRun(schedule);
     },
-    { scheduled: true, timezone: 'UTC' }
+    { scheduled: true, timezone: TIMEZONE }
   );
 
-  logNextRun(task);
+  logNextRun(schedule);
 
   if (runImmediately) {
     console.log('[scheduler] running immediate tracking job');
     await runSearchJob();
-    logNextRun(task);
+    logNextRun(schedule);
   }
 
   return task;

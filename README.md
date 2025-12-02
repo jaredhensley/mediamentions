@@ -13,6 +13,11 @@ npm install
 
 3. Configure schedule and API keys via environment variables (optional) and run the tracking job.
 
+> Note: when you start the backend locally, a `.env` file is generated automatically from `.env.example` (respecting any
+> environment variables you already exported) so you don't have to manually create one for development. If a `.env` already
+> exists, it is refreshed with any new keys from `.env.example` and values from your environment so development stays in sync
+> without manual edits.
+
 ### Configuration
 
 | Variable | Purpose | Default |
@@ -48,17 +53,14 @@ The UI renders data that comes from the backend APIs. Use the following concrete
    - From the repo root (backend): `npm install`
    - From `client/` (frontend): `cd client && npm install`
 2. **Configure the backend**
-   - Create a `.env` file (or set shell variables) with any overrides you need:
-     ```bash
-     PORT=3000
-     DATABASE_URL=./data/mediamentions.db
-     ```
-   - Start the API server from the repo root. It will create the SQLite file and schema if missing:
+   - Start the API server from the repo root. It will create the SQLite file and schema if missing, and will also create a
+     `.env` (if one doesn't exist) that prefers any existing environment variables and falls back to `.env.example` defaults:
      ```bash
      npm start
      ```
-3. **Seed a bit of data so the UI has something to render** (optional but recommended)
-   - In a separate shell, insert a client, publication, and media mention using the running API:
+3. **Seed a bit of data so the UI has something to render**
+   - The backend now auto-seeds three real media mentions for "Acme Robotics" the first time it finds an empty database in
+     development. You can add more via the running API if you like:
      ```bash
      curl -X POST http://localhost:3000/clients \
        -H 'Content-Type: application/json' \
@@ -110,6 +112,9 @@ Set these environment variables (or rely on defaults):
 - `PORT` – Port to bind the HTTP server. Defaults to `3000`.
 - `DATABASE_URL` – Path to the SQLite database file. Defaults to `./data/mediamentions.db`.
 
+> The server automatically copies `.env.example` to `.env` on first boot (merging in any variables you've already exported) so
+> local development works without manual configuration.
+
 ### Running locally
 
 1. Ensure Node.js 22+ and the `sqlite3` CLI are available in your shell (both are present in the container).
@@ -120,6 +125,9 @@ Set these environment variables (or rely on defaults):
    ```
 
    The server initializes the schema on first boot.
+3. Development seeding: when `NODE_ENV` is anything other than `production` (the default when you run `npm start`), the server
+   seeds the database with real media mentions for "Acme Robotics" the first time it finds an empty database. Set
+   `AUTO_SEED=false` to skip this behavior or point `DATABASE_URL` at a separate file if you want a clean database.
 
 ### API overview
 
