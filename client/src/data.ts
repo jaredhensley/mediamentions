@@ -35,6 +35,5 @@ export type Client = {
   id: number;
   name: string;
   contactEmail?: string;
-  industry?: string;
   notes?: string;
 };

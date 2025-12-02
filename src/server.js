@@ -67,7 +67,7 @@ function formatDisplayDate(value) {
   });
 }
 
-function buildExcelXml(rows) {
+function buildExcelXml(rows, { clientName } = {}) {
   const header = `<?xml version="1.0"?>
   <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
     xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -76,7 +76,12 @@ function buildExcelXml(rows) {
     <Worksheet ss:Name="Media Mentions">
       <Table>`;
   const footer = '</Table></Worksheet></Workbook>';
-  const columns = ['Date', 'Source', 'Title', 'Subject Matter', 'Re-Mention Date', 'Link'];
+  const columns = ['Date', 'Publication Name', 'Title', 'Topic', 'Additional Mentions', 'Link'];
+  const titleRow = clientName
+    ? `<Row><Cell ss:MergeAcross="${columns.length - 1}"><Data ss:Type="String">${escapeXml(
+        `${clientName} Media Mentions`,
+      )}</Data></Cell></Row>`
+    : '';
   const headerRow = `<Row>${columns
     .map((title) => `<Cell><Data ss:Type="String">${escapeXml(title)}</Data></Cell>`)
     .join('')}</Row>`;
@@ -84,7 +89,7 @@ function buildExcelXml(rows) {
     .map((row) => {
       const cells = [
         formatDisplayDate(row.mentionDate) || '',
-        row.source || '',
+        row.source || row.publicationName || '',
         row.title || '',
         row.subjectMatter || '',
         formatDisplayDate(row.reMentionDate) || '',
@@ -96,7 +101,7 @@ function buildExcelXml(rows) {
     })
     .join('');
 
-  return `${header}${headerRow}${dataRows}${footer}`;
+  return `${header}${titleRow}${headerRow}${dataRows}${footer}`;
 }
 
 function buildUpdateFields(body, allowedKeys) {
@@ -659,6 +664,7 @@ async function exportMentions(_req, res, params) {
     sendJson(res, 400, { error: 'Invalid client id' });
     return;
   }
+  const [client] = runQuery('SELECT name FROM clients WHERE id=@p0;', [clientId]);
   const url = new URL(_req.url, 'http://localhost');
   const filters = ['mm.clientId=@p0'];
   const values = [clientId];
@@ -676,17 +682,17 @@ async function exportMentions(_req, res, params) {
   }
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const rows = runQuery(
-    `SELECT mm.mentionDate, COALESCE(mm.source, p.name) as source, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
+    `SELECT mm.mentionDate, COALESCE(mm.source, p.name) as source, p.name as publicationName, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
      FROM mediaMentions mm
      LEFT JOIN publications p ON mm.publicationId = p.id
      ${whereClause}
      ORDER BY mm.mentionDate DESC, mm.id DESC;`,
     values,
   );
-  const xml = buildExcelXml(rows);
+  const xml = buildExcelXml(rows, { clientName: client?.name });
   res.writeHead(200, {
     'Content-Type': 'application/vnd.ms-excel',
-    'Content-Disposition': `attachment; filename="media-mentions-client-${clientId}.xls"`,
+    'Content-Disposition': `attachment; filename="media-mentions-${client?.name || clientId}.xls"`,
   });
   res.end(xml);
 }
