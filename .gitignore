@@ -34,6 +34,7 @@ logs
 *.pid
 *.seed
 *.sqlite
+/data/*.db
 /tmp
 /.venv
 venv/
