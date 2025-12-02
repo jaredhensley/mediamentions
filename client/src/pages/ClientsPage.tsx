@@ -24,20 +24,20 @@ import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications } fr
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
+import { formatDisplayDate } from '../utils/format';
 
 export default function ClientsPage() {
   const [clientList, setClientList] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<number | ''>('');
-  const [tab, setTab] = useState<'press' | 'mentions'>('press');
+  const [tab, setTab] = useState<'press' | 'mentions'>('mentions');
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
   const [publicationList, setPublicationList] = useState<Publication[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sentimentFilter, setSentimentFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
-  const [clientForm, setClientForm] = useState({ name: '', industry: '', notes: '' });
+  const [clientForm, setClientForm] = useState({ name: '', notes: '' });
 
   useEffect(() => {
     fetchClients()
@@ -69,11 +69,10 @@ export default function ClientsPage() {
       mentions.filter((mention) => {
         return (
           mention.clientId === selectedClientId &&
-          (sentimentFilter === 'all' || mention.sentiment === sentimentFilter) &&
-          (statusFilter === 'all' || mention.status === statusFilter)
+          (sentimentFilter === 'all' || mention.sentiment === sentimentFilter)
         );
       }),
-    [mentions, selectedClientId, sentimentFilter, statusFilter],
+    [mentions, selectedClientId, sentimentFilter],
   );
 
   const handleMentionSave = (data: MentionFormData) => {
@@ -94,12 +93,11 @@ export default function ClientsPage() {
     const newClient = {
       id: nextId,
       name: trimmedName,
-      industry: clientForm.industry.trim() || 'General',
       notes: clientForm.notes.trim(),
     };
 
     setClientList((prev) => [...prev, newClient]);
-    setClientForm({ name: '', industry: '', notes: '' });
+    setClientForm({ name: '', notes: '' });
     setSelectedClientId(newClient.id);
   };
 
@@ -114,7 +112,7 @@ export default function ClientsPage() {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${selectedClient?.name || 'mentions'}.xlsx`;
+    link.download = `${selectedClient?.name || 'mentions'}.xls`;
     link.click();
     window.URL.revokeObjectURL(url);
   };
@@ -138,12 +136,6 @@ export default function ClientsPage() {
                   fullWidth
                 />
                 <TextField
-                  label="Industry"
-                  value={clientForm.industry}
-                  onChange={(e) => setClientForm((prev) => ({ ...prev, industry: e.target.value }))}
-                  fullWidth
-                />
-                <TextField
                   label="Notes"
                   value={clientForm.notes}
                   onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
@@ -157,7 +149,6 @@ export default function ClientsPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell>Industry</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -170,7 +161,6 @@ export default function ClientsPage() {
                       onClick={() => setSelectedClientId(client.id)}
                     >
                       <TableCell>{client.name}</TableCell>
-                      <TableCell>{client.industry || 'N/A'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -197,11 +187,64 @@ export default function ClientsPage() {
               </Stack>
 
               <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={{ mt: 2 }}>
-                <Tab value="press" label="Press releases" />
                 <Tab value="mentions" label="Mentions" />
+                <Tab value="press" label="Press releases" />
               </Tabs>
 
               <Divider sx={{ my: 2 }} />
+
+              {tab === 'mentions' && (
+                <Stack spacing={2}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <Select
+                      size="small"
+                      value={sentimentFilter}
+                      onChange={(e) => setSentimentFilter(e.target.value)}
+                      displayEmpty
+                    >
+                      <MenuItem value="all">All sentiments</MenuItem>
+                      <MenuItem value="positive">Positive</MenuItem>
+                      <MenuItem value="neutral">Neutral</MenuItem>
+                      <MenuItem value="negative">Negative</MenuItem>
+                    </Select>
+                    <Button variant="outlined" onClick={handleExport}>
+                      Export to Excel
+                    </Button>
+                  </Stack>
+
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Title</TableCell>
+                        <TableCell>Source</TableCell>
+                        <TableCell>Sentiment</TableCell>
+                        <TableCell>Date</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {clientMentions.map((mention) => (
+                        <TableRow key={mention.id}>
+                          <TableCell>
+                            {mention.link ? (
+                              <a href={mention.link} target="_blank" rel="noreferrer noopener">
+                                {mention.title}
+                              </a>
+                            ) : (
+                              mention.title
+                            )}
+                          </TableCell>
+                          <TableCell>{mention.source || publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
+                          <TableCell>
+                            <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
+                          </TableCell>
+                          <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {clientMentions.length === 0 && <Typography color="text.secondary">No mentions match the filters.</Typography>}
+                </Stack>
+              )}
 
               {tab === 'press' && (
                 <Stack spacing={2}>
@@ -218,59 +261,6 @@ export default function ClientsPage() {
                   {clientPressReleases.length === 0 && (
                     <Typography color="text.secondary">No press releases yet.</Typography>
                   )}
-                </Stack>
-              )}
-
-              {tab === 'mentions' && (
-                <Stack spacing={2}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Select
-                      size="small"
-                      value={sentimentFilter}
-                      onChange={(e) => setSentimentFilter(e.target.value)}
-                      displayEmpty
-                    >
-                      <MenuItem value="all">All sentiments</MenuItem>
-                      <MenuItem value="positive">Positive</MenuItem>
-                      <MenuItem value="neutral">Neutral</MenuItem>
-                      <MenuItem value="negative">Negative</MenuItem>
-                    </Select>
-                    <Select size="small" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} displayEmpty>
-                      <MenuItem value="all">All statuses</MenuItem>
-                      <MenuItem value="new">New</MenuItem>
-                      <MenuItem value="in-review">In review</MenuItem>
-                      <MenuItem value="published">Published</MenuItem>
-                    </Select>
-                    <Button variant="outlined" onClick={handleExport}>
-                      Export to Excel
-                    </Button>
-                  </Stack>
-
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Publication</TableCell>
-                        <TableCell>Sentiment</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Date</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {clientMentions.map((mention) => (
-                        <TableRow key={mention.id}>
-                          <TableCell>{mention.title}</TableCell>
-                          <TableCell>{publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
-                          <TableCell>
-                            <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
-                          </TableCell>
-                          <TableCell>{mention.status}</TableCell>
-                          <TableCell>{mention.mentionDate}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {clientMentions.length === 0 && <Typography color="text.secondary">No mentions match the filters.</Typography>}
                 </Stack>
               )}
             </CardContent>

@@ -4,6 +4,14 @@ const path = require('path');
 
 const databasePath = process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
 
+function ensureColumn(table, column, definition) {
+  const columns = runQuery(`PRAGMA table_info(${table});`);
+  const hasColumn = columns.some((col) => col.name === column);
+  if (!hasColumn) {
+    runExecute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  }
+}
+
 function buildArgs(sql, params, asJson = true) {
   const args = [databasePath];
   const commands = ['PRAGMA foreign_keys = ON;', '.parameter init'];
@@ -76,6 +84,9 @@ function initializeDatabase() {
     mentionDate TEXT NOT NULL,
     reMentionDate TEXT,
     link TEXT,
+    source TEXT,
+    sentiment TEXT,
+    status TEXT,
     clientId INTEGER NOT NULL,
     publicationId INTEGER NOT NULL,
     pressReleaseId INTEGER,
@@ -111,6 +122,11 @@ function initializeDatabase() {
   `;
 
   execFileSync('sqlite3', [databasePath, schema], { encoding: 'utf8' });
+
+  // Backfill columns for existing databases where the schema already exists.
+  ensureColumn('mediaMentions', 'source', 'TEXT');
+  ensureColumn('mediaMentions', 'sentiment', 'TEXT');
+  ensureColumn('mediaMentions', 'status', 'TEXT');
 }
 
 module.exports = {
