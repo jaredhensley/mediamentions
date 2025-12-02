@@ -1,4 +1,5 @@
 const { execFileSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const databasePath = process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
@@ -31,6 +32,11 @@ function runExecute(sql, params = []) {
 }
 
 function initializeDatabase() {
+  const directory = path.dirname(databasePath);
+  if (directory && directory !== '.') {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+
   const schema = `
   PRAGMA foreign_keys = ON;
 
