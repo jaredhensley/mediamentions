@@ -1,14 +1,22 @@
-import { useState } from 'react';
-import { Button, Card, CardContent, IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Button, Card, CardContent, IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { publications as initialPublications } from '../data';
+import { fetchPublications } from '../api';
+import { Publication } from '../data';
 import PublicationFormModal, { PublicationFormData } from '../components/PublicationFormModal';
 
 export default function PublicationsPage() {
-  const [publications, setPublications] = useState(initialPublications);
+  const [publications, setPublications] = useState<Publication[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPublications()
+      .then(setPublications)
+      .catch((err) => setError(err.message));
+  }, []);
 
   const editingPublication = publications.find((p) => p.id === editingId);
 
@@ -16,11 +24,12 @@ export default function PublicationsPage() {
     if (editingId) {
       setPublications((prev) => prev.map((pub) => (pub.id === editingId ? { ...pub, ...data } : pub)));
     } else {
-      setPublications((prev) => [...prev, { ...data, id: `pub-${prev.length + 1}` }]);
+      const nextId = publications.length ? Math.max(...publications.map((p) => p.id)) + 1 : 1;
+      setPublications((prev) => [...prev, { ...data, id: nextId }]);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     setPublications((prev) => prev.filter((pub) => pub.id !== id));
   };
 
@@ -39,14 +48,16 @@ export default function PublicationsPage() {
         </Button>
       </Stack>
 
+      {error && <Typography color="error">{error}</Typography>}
+
       <Card>
         <CardContent>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell>URL</TableCell>
-                <TableCell>Region</TableCell>
+                <TableCell>Website</TableCell>
+                <TableCell>Client ID</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -54,8 +65,8 @@ export default function PublicationsPage() {
               {publications.map((pub) => (
                 <TableRow key={pub.id}>
                   <TableCell>{pub.name}</TableCell>
-                  <TableCell>{pub.url}</TableCell>
-                  <TableCell>{pub.region}</TableCell>
+                  <TableCell>{pub.website || 'N/A'}</TableCell>
+                  <TableCell>{pub.clientId ?? 'N/A'}</TableCell>
                   <TableCell align="right">
                     <IconButton
                       onClick={() => {
@@ -80,7 +91,15 @@ export default function PublicationsPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
-        initial={editingPublication ? { name: editingPublication.name, url: editingPublication.url, region: editingPublication.region } : undefined}
+        initial={
+          editingPublication
+            ? {
+                name: editingPublication.name,
+                website: editingPublication.website || '',
+                clientId: editingPublication.clientId ?? null,
+              }
+            : undefined
+        }
       />
     </Stack>
   );
