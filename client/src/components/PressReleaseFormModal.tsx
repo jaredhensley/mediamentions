@@ -14,19 +14,21 @@ interface Props {
 
 export default function PressReleaseFormModal({ open, onClose, onSave, initial, clients }: Props) {
   const [formState, setFormState] = useState<PressReleaseFormData>(() => ({
-    clientId: initial?.clientId || clients[0]?.id || '',
+    clientId: initial?.clientId || clients[0]?.id || 0,
     title: initial?.title || '',
-    date: initial?.date || new Date().toISOString().slice(0, 10),
+    date: initial?.date || initial?.releaseDate || new Date().toISOString().slice(0, 10),
+    releaseDate: initial?.releaseDate || initial?.date || new Date().toISOString().slice(0, 10),
     status: initial?.status || 'draft',
-    body: initial?.body || '',
+    body: initial?.body || initial?.content || '',
+    content: initial?.content,
   }));
 
   useEffect(() => {
     if (initial) return;
-    setFormState((prev) => ({ ...prev, clientId: prev.clientId || clients[0]?.id || '' }));
+    setFormState((prev) => ({ ...prev, clientId: prev.clientId || clients[0]?.id || 0 }));
   }, [clients, initial]);
 
-  const handleChange = (key: keyof PressReleaseFormData, value: string) => {
+  const handleChange = (key: keyof PressReleaseFormData, value: string | number) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -46,7 +48,7 @@ export default function PressReleaseFormModal({ open, onClose, onSave, initial, 
               labelId="client-label"
               label="Client"
               value={formState.clientId}
-              onChange={(e) => handleChange('clientId', e.target.value)}
+              onChange={(e) => handleChange('clientId', Number(e.target.value))}
             >
               {clients.map((client) => (
                 <MenuItem key={client.id} value={client.id}>
