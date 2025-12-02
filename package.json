@@ -5,8 +5,10 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/index.js",
-    "start:once": "node src/index.js --once",
+    "start": "node src/server.js",
+    "dev": "node src/dev.js",
+    "scheduler": "node src/index.js",
+    "scheduler:once": "node src/index.js --once",
     "test": "echo \"No automated tests configured\""
   },
   "dependencies": {

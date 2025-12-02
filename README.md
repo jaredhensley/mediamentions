@@ -29,13 +29,13 @@ npm install
 Run a single tracking job:
 
 ```bash
-npm run start:once
+npm run scheduler:once
 ```
 
 Start the scheduler (runs immediately and then at the configured daily time using a cron expression in UTC):
 
 ```bash
-npm start
+npm run scheduler
 ```
 
 Provider errors are logged on the job record but do not stop the pipeline from querying subsequent sources.
@@ -57,7 +57,13 @@ The UI renders data that comes from the backend APIs. Use the following concrete
      ```bash
      npm start
      ```
-3. **Seed a bit of data so the UI has something to render** (optional but recommended)
+3. **Zero-config developer mode (auto database + seed data)**
+   - Prefer `npm run dev` during local development. It will:
+     - Create `data/mediamentions.db` (or whatever `DATABASE_URL` points to)
+     - Auto-seed a demo client, publication, and media mention if the database is empty
+     - Start the API server with CORS enabled
+   - Set `SKIP_DEV_SEED=1` if you want to start clean without sample data.
+4. **Seed a bit of data manually (if you skipped dev mode)**
    - In a separate shell, insert a client, publication, and media mention using the running API:
      ```bash
      curl -X POST http://localhost:3000/clients \
@@ -125,13 +131,17 @@ Set these environment variables (or rely on defaults):
 ### Running locally
 
 1. Ensure Node.js 22+ and the `sqlite3` CLI are available in your shell (both are present in the container).
-2. Start the server:
+2. Start the server (creates the database if missing):
 
    ```bash
    npm start
    ```
 
-   The server initializes the schema on first boot.
+3. For a no-hassle local environment with sample data, run instead:
+
+   ```bash
+   npm run dev
+   ```
 
 ### API overview
 
