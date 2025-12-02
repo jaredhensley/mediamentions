@@ -1,6 +1,5 @@
 const { scheduleDailySearch } = require('./services/scheduler');
 const { runSearchJob } = require('./services/searchService');
-const { mediaMentions, searchJobs } = require('./data/store');
 const { initializeDatabase } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
@@ -27,8 +26,7 @@ async function start() {
 start()
   .then(() => {
     if (runOnce) {
-      console.log(`[results] mentions: ${mediaMentions.length}`);
-      console.log(`[results] jobs recorded: ${searchJobs.length}`);
+      console.log('[results] job completed successfully');
     }
   })
   .catch((err) => {

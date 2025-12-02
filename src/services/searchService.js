@@ -1,5 +1,4 @@
 const { randomUUID } = require('crypto');
-const { clients: demoClients, searchJobs } = require('../data/store');
 const { getSearchProfile } = require('../data/clientSearchProfiles');
 const { runQuery } = require('../db');
 const { providerLookup } = require('../providers/providers');
@@ -25,10 +24,7 @@ function hydratePressReleasesForClient(client) {
 }
 
 function loadClients() {
-  const rows = runQuery('SELECT id, name FROM clients ORDER BY id;');
-  return rows.length
-    ? rows
-    : demoClients.map((client) => ({ ...client, keywords: client.keywords || [client.name] }));
+  return runQuery('SELECT id, name FROM clients ORDER BY id;');
 }
 
 async function runProvider(providerName, searchRequest, jobLog) {
@@ -62,7 +58,6 @@ async function runSearchJob() {
     providerRuns: [],
     createdMentions: 0
   };
-  searchJobs.push(jobLog);
 
   const activeClients = loadClients();
   for (const client of activeClients) {

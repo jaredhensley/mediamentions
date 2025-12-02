@@ -25,10 +25,7 @@ export type PressRelease = {
   clientId: number;
   title: string;
   content?: string;
-  releaseDate?: string;
-  date?: string;
-  status?: 'draft' | 'scheduled' | 'sent';
-  body?: string;
+  releaseDate: string;
 };
 
 export type Client = {
