@@ -1,6 +1,8 @@
 const path = require('path');
 const { initializeDatabase, runQuery, databasePath } = require('./db');
 const defaultPublications = require('./data/defaultPublications');
+const defaultClients = require('./data/defaultClients');
+const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 function log(msg) {
@@ -9,6 +11,7 @@ function log(msg) {
 }
 
 function seedIfEmpty() {
+  seedDefaultClients({ log });
   seedDefaultPublications({ log });
 
   const [{ count: clientCount } = { count: 0 }] = runQuery('SELECT COUNT(*) as count FROM clients;');
@@ -25,10 +28,13 @@ function seedIfEmpty() {
   }
 
   const now = new Date().toISOString();
-  const [client] = runQuery(
-    'INSERT INTO clients (name, contactEmail, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
-    ['Example Client', 'press@example.com', now],
-  );
+  const sampleClientName = defaultClients[0].name;
+  const [client] =
+    runQuery('SELECT * FROM clients WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [sampleClientName]) || [];
+
+  if (!client) {
+    throw new Error(`Expected default client "${sampleClientName}" to be seeded before sample data.`);
+  }
 
   const samplePublicationName = defaultPublications[0].name;
   const [publication] =

@@ -1,8 +1,10 @@
 const http = require('http');
 const { initializeDatabase, runQuery } = require('./db');
+const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 initializeDatabase();
+seedDefaultClients();
 seedDefaultPublications();
 
 const PORT = process.env.PORT || 3000;
