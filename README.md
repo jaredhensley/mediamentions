@@ -42,7 +42,7 @@ The API starts an HTTP server on port 3000 by default and will create the SQLite
 
   Set `SKIP_DEV_SEED=1` to start without inserting demo records.
 
-- Start the API without the dev helper:
+- Start the API without the dev helper (top-tier publications and core clients are still seeded on first run for convenience):
 
   ```bash
   npm start
