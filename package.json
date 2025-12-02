@@ -1,0 +1,15 @@
+{
+  "name": "mediamentions",
+  "version": "1.0.0",
+  "description": "Daily tracking scheduler and media mention pipeline",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "start:once": "node src/index.js --once",
+    "test": "echo \"No automated tests configured\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
