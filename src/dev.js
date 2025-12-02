@@ -1,5 +1,6 @@
 const path = require('path');
 const { initializeDatabase, runQuery, databasePath } = require('./db');
+const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 function log(msg) {
   // eslint-disable-next-line no-console
@@ -7,6 +8,8 @@ function log(msg) {
 }
 
 function seedIfEmpty() {
+  seedDefaultPublications({ log });
+
   const [{ count: clientCount } = { count: 0 }] = runQuery('SELECT COUNT(*) as count FROM clients;');
   const [{ count: publicationCount } = { count: 0 }] = runQuery(
     'SELECT COUNT(*) as count FROM publications;',
