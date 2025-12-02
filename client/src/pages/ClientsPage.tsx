@@ -20,12 +20,13 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { clients, mentions as initialMentions, pressReleases as initialPressReleases, publications } from '../data';
+import { clients as initialClients, mentions as initialMentions, pressReleases as initialPressReleases, publications } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
 
 export default function ClientsPage() {
-  const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id || '');
+  const [clientList, setClientList] = useState(initialClients);
+  const [selectedClientId, setSelectedClientId] = useState(initialClients[0]?.id || '');
   const [tab, setTab] = useState<'press' | 'mentions'>('press');
   const [mentions, setMentions] = useState(initialMentions);
   const [pressReleases, setPressReleases] = useState(initialPressReleases);
@@ -33,8 +34,9 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
+  const [clientForm, setClientForm] = useState({ name: '', industry: '', notes: '' });
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId);
+  const selectedClient = clientList.find((c) => c.id === selectedClientId);
 
   const clientPressReleases = useMemo(
     () => pressReleases.filter((pr) => pr.clientId === selectedClientId),
@@ -59,6 +61,24 @@ export default function ClientsPage() {
 
   const handlePressSave = (data: PressReleaseFormData) => {
     setPressReleases((prev) => [...prev, { ...data, id: `pr-${prev.length + 1}` }]);
+  };
+
+  const handleClientSave = () => {
+    const trimmedName = clientForm.name.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    const newClient = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `client-${Date.now()}`,
+      name: trimmedName,
+      industry: clientForm.industry.trim() || 'General',
+      notes: clientForm.notes.trim(),
+    };
+
+    setClientList((prev) => [...prev, newClient]);
+    setClientForm({ name: '', industry: '', notes: '' });
+    setSelectedClientId(newClient.id);
   };
 
   const handleExport = async () => {
@@ -87,6 +107,29 @@ export default function ClientsPage() {
               <Typography variant="h6" gutterBottom>
                 Client list
               </Typography>
+              <Stack spacing={2} sx={{ mb: 2 }}>
+                <TextField
+                  label="Client name"
+                  value={clientForm.name}
+                  onChange={(e) => setClientForm((prev) => ({ ...prev, name: e.target.value }))}
+                  fullWidth
+                />
+                <TextField
+                  label="Industry"
+                  value={clientForm.industry}
+                  onChange={(e) => setClientForm((prev) => ({ ...prev, industry: e.target.value }))}
+                  fullWidth
+                />
+                <TextField
+                  label="Notes"
+                  value={clientForm.notes}
+                  onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  fullWidth
+                />
+                <Button variant="contained" onClick={handleClientSave} disabled={!clientForm.name.trim()}>
+                  Add client
+                </Button>
+              </Stack>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -95,7 +138,7 @@ export default function ClientsPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {clients.map((client) => (
+                  {clientList.map((client) => (
                     <TableRow
                       key={client.id}
                       hover
@@ -217,7 +260,7 @@ export default function ClientsPage() {
         open={pressModalOpen}
         onClose={() => setPressModalOpen(false)}
         onSave={handlePressSave}
-        clients={clients}
+        clients={clientList}
       />
     </Stack>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
 import { Client, PressRelease } from '../data';
 
@@ -13,15 +13,18 @@ interface Props {
 }
 
 export default function PressReleaseFormModal({ open, onClose, onSave, initial, clients }: Props) {
-  const [formState, setFormState] = useState<PressReleaseFormData>(
-    initial || {
-      clientId: clients[0]?.id || '',
-      title: '',
-      date: new Date().toISOString().slice(0, 10),
-      status: 'draft',
-      body: '',
-    },
-  );
+  const [formState, setFormState] = useState<PressReleaseFormData>(() => ({
+    clientId: initial?.clientId || clients[0]?.id || '',
+    title: initial?.title || '',
+    date: initial?.date || new Date().toISOString().slice(0, 10),
+    status: initial?.status || 'draft',
+    body: initial?.body || '',
+  }));
+
+  useEffect(() => {
+    if (initial) return;
+    setFormState((prev) => ({ ...prev, clientId: prev.clientId || clients[0]?.id || '' }));
+  }, [clients, initial]);
 
   const handleChange = (key: keyof PressReleaseFormData, value: string) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
