@@ -3,6 +3,7 @@ import { Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { fetchMentions, fetchPublications } from '../api';
 import { Mention, Publication } from '../data';
+import { formatDisplayDate } from '../utils/format';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 
 export default function MentionsPage() {
@@ -38,14 +39,32 @@ export default function MentionsPage() {
   );
 
   const columns: GridColDef[] = [
-    { field: 'title', headerName: 'Title', flex: 1 },
     {
-      field: 'publicationId',
-      headerName: 'Publication',
+      field: 'title',
+      headerName: 'Title',
       flex: 1,
-      valueGetter: (params) => publicationList.find((p) => p.id === params.value)?.name || params.value,
+      renderCell: (params) =>
+        params.row.link ? (
+          <a href={params.row.link} target="_blank" rel="noreferrer noopener">
+            {params.value}
+          </a>
+        ) : (
+          params.value
+        ),
     },
-    { field: 'mentionDate', headerName: 'Date', width: 130 },
+    {
+      field: 'source',
+      headerName: 'Source',
+      flex: 1,
+      valueGetter: (params) =>
+        params.row.source || publicationList.find((p) => p.id === params.row.publicationId)?.name || params.row.publicationId,
+    },
+    {
+      field: 'mentionDate',
+      headerName: 'Date',
+      width: 160,
+      valueGetter: (params) => formatDisplayDate(params.value as string),
+    },
     {
       field: 'sentiment',
       headerName: 'Sentiment',

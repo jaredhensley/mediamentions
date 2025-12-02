@@ -12,6 +12,7 @@ export type Mention = {
   subjectMatter?: string;
   reMentionDate?: string | null;
   link?: string;
+  source?: string | null;
   clientId: number;
   publicationId: number;
   pressReleaseId?: number | null;
