@@ -1,3 +1,5 @@
+const cron = require('node-cron');
+
 const { runSearchJob } = require('./searchService');
 const { searchConfig } = require('../config');
 
@@ -16,32 +18,43 @@ function parseSchedule(timeString) {
   return { hours, minutes };
 }
 
-function nextRunDate(schedule) {
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(schedule.hours, schedule.minutes, 0, 0);
-  if (next <= now) {
-    next.setDate(next.getDate() + 1);
+function cronExpressionFromSchedule(schedule) {
+  return `${schedule.minutes} ${schedule.hours} * * *`;
+}
+
+function logNextRun(task) {
+  try {
+    const next = task.nextDates().toJSDate();
+    console.log(`[scheduler] next run scheduled for ${next.toISOString()}`);
+  } catch (err) {
+    console.warn('[scheduler] unable to compute next run time', err.message);
   }
-  return next;
 }
 
 async function scheduleDailySearch({ runImmediately = false } = {}) {
   const schedule = parseSchedule(searchConfig.scheduleTime);
-  let nextRun = runImmediately ? new Date() : nextRunDate(schedule);
+  const cronExpression = cronExpressionFromSchedule(schedule);
 
-  async function runAndSchedule() {
-    console.log(`[scheduler] starting tracking run at ${new Date().toISOString()}`);
+  console.log(`[scheduler] registering cron job with expression "${cronExpression}"`);
+  const task = cron.schedule(
+    cronExpression,
+    async () => {
+      console.log(`[scheduler] starting tracking run at ${new Date().toISOString()}`);
+      await runSearchJob();
+      logNextRun(task);
+    },
+    { scheduled: true, timezone: 'UTC' }
+  );
+
+  logNextRun(task);
+
+  if (runImmediately) {
+    console.log('[scheduler] running immediate tracking job');
     await runSearchJob();
-    nextRun = nextRunDate(schedule);
-    const delay = nextRun.getTime() - Date.now();
-    console.log(`[scheduler] next run scheduled for ${nextRun.toISOString()}`);
-    setTimeout(runAndSchedule, delay);
+    logNextRun(task);
   }
 
-  const initialDelay = Math.max(0, nextRun.getTime() - Date.now());
-  console.log(`[scheduler] initial run scheduled for ${nextRun.toISOString()}`);
-  setTimeout(runAndSchedule, initialDelay);
+  return task;
 }
 
 module.exports = {

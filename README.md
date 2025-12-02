@@ -5,7 +5,12 @@ This repository contains a lightweight scheduler and tracking pipeline that simu
 ## Getting started
 
 1. Ensure Node.js 18+ is available.
-2. Install dependencies (none outside of Node core are required in this stubbed implementation).
+2. Install dependencies (installs `node-cron` for scheduling):
+
+```bash
+npm install
+```
+
 3. Configure schedule and API keys via environment variables (optional) and run the tracking job.
 
 ### Configuration
@@ -27,7 +32,7 @@ Run a single tracking job:
 npm run start:once
 ```
 
-Start the scheduler (runs immediately and then at the configured daily time):
+Start the scheduler (runs immediately and then at the configured daily time using a cron expression in UTC):
 
 ```bash
 npm start
