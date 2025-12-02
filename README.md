@@ -39,6 +39,62 @@ npm start
 ```
 
 Provider errors are logged on the job record but do not stop the pipeline from querying subsequent sources.
+
+## End-to-end local example (DB + backend + UI)
+
+The UI renders data that comes from the backend APIs. Use the following concrete steps to make sure SQLite, the Node server, and the Vite app talk to each other:
+
+1. **Install dependencies**
+   - From the repo root (backend): `npm install`
+   - From `client/` (frontend): `cd client && npm install`
+2. **Configure the backend**
+   - Create a `.env` file (or set shell variables) with any overrides you need:
+     ```bash
+     PORT=3000
+     DATABASE_URL=./data/mediamentions.db
+     ```
+   - Start the API server from the repo root. It will create the SQLite file and schema if missing:
+     ```bash
+     npm start
+     ```
+3. **Seed a bit of data so the UI has something to render** (optional but recommended)
+   - In a separate shell, insert a client, publication, and media mention using the running API:
+     ```bash
+     curl -X POST http://localhost:3000/clients \
+       -H 'Content-Type: application/json' \
+       -d '{"name":"Example Client","contactEmail":"press@example.com"}'
+
+     curl -X POST http://localhost:3000/publications \
+       -H 'Content-Type: application/json' \
+       -d '{"name":"Tech Daily","website":"https://techdaily.example","clientId":1}'
+
+     curl -X POST http://localhost:3000/media-mentions \
+       -H 'Content-Type: application/json' \
+       -d '{"title":"Launch coverage","subjectMatter":"Product","mentionDate":"2024-05-01","link":"https://techdaily.example/launch","clientId":1,"publicationId":1}'
+     ```
+4. **Proxy frontend API calls to the backend during development**
+   - Add a dev proxy to `client/vite.config.ts` so `/api` calls from the browser go to the Node server when running `npm run dev`:
+     ```ts
+     import { defineConfig } from 'vite';
+     import react from '@vitejs/plugin-react';
+
+     export default defineConfig({
+       plugins: [react()],
+       server: {
+         proxy: {
+           '/api': 'http://localhost:3000',
+           '/clients': 'http://localhost:3000',
+           '/publications': 'http://localhost:3000',
+           '/media-mentions': 'http://localhost:3000',
+         },
+       },
+     });
+     ```
+   - Restart the Vite dev server after saving the proxy settings: `cd client && npm run dev`
+5. **Open the app**
+   - Visit the Vite dev URL (default `http://localhost:5173`). The “Clients” page can now add mentions locally and the “Export” button will hit the backend because `/api/clients/:id/mentions/export` is forwarded through the proxy.
+
+If you prefer to avoid a proxy, you can also run `npm run build` in `client/` and serve the static `client/dist` output from any web server that forwards `/api` requests to the Node process on port 3000.
 # Mentions
 
 This repository hosts a lightweight Node.js HTTP server at the repository root and a React single-page application in the `client/` workspace. Use this layout to keep backend and frontend dependencies separated while sharing a single git repository.
