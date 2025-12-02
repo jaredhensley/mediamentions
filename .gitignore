@@ -1,21 +1,46 @@
-# Node builds
+# Node
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-dist
+# Build / coverage
 build
 coverage
+dist
+*.tsbuildinfo
 
-# Environment / OS
+# Environment / secrets
 .env
 .env.*
+.env.local
+.envrc
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Client workspace artifacts
+# Client workspace
 client/node_modules
 client/dist
 client/.vite
+client/.env
+client/.env.*
+
+# Backend workspace (common patterns)
+logs
+*.log
+*.pid
+*.seed
+*.sqlite
+/tmp
+/.venv
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+
+# Editor
+.idea/
+.vscode/
