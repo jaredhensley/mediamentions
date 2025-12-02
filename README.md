@@ -89,7 +89,7 @@ Scheduler configuration (defaults are in `src/config.js`):
 - `BING_API_KEY`, `CUSTOM_SEARCH_KEY`, `INBOX_TOKEN` – Stub keys used by provider simulations.
 - `MAX_RESULTS_PER_PROVIDER` – Cap on results fetched per provider (default: `10`).
 
-Copy `.env.example` to `.env` and populate the Google variables to enable live Google queries. Environment files are gitignored (with `.env.example` kept for reference) so keys stay out of version control. The Google provider requests results from the last 24 hours using the Custom Search `dateRestrict=d1` parameter and caps results according to `MAX_RESULTS_PER_PROVIDER`.
+Copy `.env.example` to `.env` and populate the Google variables to enable live Google queries. Environment files are gitignored (with `.env.example` kept for reference) so keys stay out of version control. The runtime automatically loads `.env`, so you can restart the scheduler or API after editing the file—no extra wiring is needed. The Google provider requests results from the last 24 hours using the Custom Search `dateRestrict=d1` parameter and caps results according to `MAX_RESULTS_PER_PROVIDER`.
 
 ## Frontend (`client/`)
 The React SPA expects the backend routes above. During development, proxy API calls to the Node server from the Vite dev server:

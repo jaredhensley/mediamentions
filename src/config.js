@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const DEFAULT_SCHEDULE_TIME = process.env.SCHEDULE_TIME || '03:00';
 
 const providerApiKeys = {
