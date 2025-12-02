@@ -1,175 +1,117 @@
 # Mentions tracker
 
-This repository contains a lightweight scheduler and tracking pipeline that simulates daily media monitoring for client press releases. It normalizes provider results, deduplicates by client and URL, and records unverified media mention entries while logging job metadata.
+A lightweight media monitoring playground that includes:
 
-## Getting started
+- A Node.js HTTP API that stores clients, publications, press releases, media mentions, and feedback summaries in SQLite.
+- A scheduler that runs simple provider simulations to create daily media mentions for active press releases.
+- A React + Vite frontend located in `client/`.
 
-1. Ensure Node.js 18+ is available.
-2. Install dependencies (installs `node-cron` for scheduling):
+The backend uses the `sqlite3` CLI directly (no ORM) and can bootstrap a database with sample data when running in developer mode.
+
+## Repository layout
+- `src/` – SQLite schema creation, HTTP server, dev seeding helper, scheduler, and provider/search utilities.
+- `client/` – React SPA (TypeScript + MUI) that consumes the backend APIs.
+- `data/` – SQLite database file location when using defaults.
+
+## Prerequisites
+- Node.js 18+ installed and available on your PATH.
+- `sqlite3` CLI installed (used by the backend to create and query the database).
+
+## Setup
+Install backend dependencies from the repository root:
 
 ```bash
 npm install
 ```
 
-3. Configure schedule and API keys via environment variables (optional) and run the tracking job.
-
-### Configuration
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `SCHEDULE_TIME` | Daily run time in 24h `HH:MM` format | `03:00` |
-| `GOOGLE_API_KEY` | Stub Google search key | `demo-google-key` |
-| `BING_API_KEY` | Stub Bing search key | `demo-bing-key` |
-| `CUSTOM_SEARCH_KEY` | Stub custom API key | `demo-custom-key` |
-| `INBOX_TOKEN` | Stub inbox token | `demo-inbox-token` |
-| `MAX_RESULTS_PER_PROVIDER` | Cap on results fetched per provider | `10` |
-
-### Running the tracker
-
-Run a single tracking job:
+Install frontend dependencies (kept separate to avoid conflicts):
 
 ```bash
-npm run scheduler:once
+cd client
+npm install
 ```
 
-Start the scheduler (runs immediately and then at the configured daily time using a cron expression in UTC):
+## Running the backend API
+The API starts an HTTP server on port 3000 by default and will create the SQLite database if it does not exist.
 
-```bash
-npm run scheduler
-```
+- Start with auto-seeded sample data and CORS enabled (recommended for local development):
 
-Provider errors are logged on the job record but do not stop the pipeline from querying subsequent sources.
+  ```bash
+  npm run dev
+  ```
 
-## End-to-end local example (DB + backend + UI)
+  Set `SKIP_DEV_SEED=1` to start without inserting demo records.
 
-The UI renders data that comes from the backend APIs. Use the following concrete steps to make sure SQLite, the Node server, and the Vite app talk to each other:
+- Start the API without the dev helper:
 
-1. **Install dependencies**
-   - From the repo root (backend): `npm install`
-   - From `client/` (frontend): `cd client && npm install`
-2. **Configure the backend**
-   - Create a `.env` file (or set shell variables) with any overrides you need:
-     ```bash
-     PORT=3000
-     DATABASE_URL=./data/mediamentions.db
-     ```
-   - Start the API server from the repo root. It will create the SQLite file and schema if missing:
-     ```bash
-     npm start
-     ```
-3. **Zero-config developer mode (auto database + seed data)**
-   - Prefer `npm run dev` during local development. It will:
-     - Create `data/mediamentions.db` (or whatever `DATABASE_URL` points to)
-     - Auto-seed a demo client, publication, and media mention if the database is empty
-     - Start the API server with CORS enabled
-   - Set `SKIP_DEV_SEED=1` if you want to start clean without sample data.
-4. **Seed a bit of data manually (if you skipped dev mode)**
-   - In a separate shell, insert a client, publication, and media mention using the running API:
-     ```bash
-     curl -X POST http://localhost:3000/clients \
-       -H 'Content-Type: application/json' \
-       -d '{"name":"Example Client","contactEmail":"press@example.com"}'
+  ```bash
+  npm start
+  ```
 
-     curl -X POST http://localhost:3000/publications \
-       -H 'Content-Type: application/json' \
-       -d '{"name":"Tech Daily","website":"https://techdaily.example","clientId":1}'
+### Environment variables
+- `PORT` – HTTP port (default: `3000`).
+- `DATABASE_URL` – Path to the SQLite database file (default: `./data/mediamentions.db`).
 
-     curl -X POST http://localhost:3000/media-mentions \
-       -H 'Content-Type: application/json' \
-       -d '{"title":"Launch coverage","subjectMatter":"Product","mentionDate":"2024-05-01","link":"https://techdaily.example/launch","clientId":1,"publicationId":1}'
-     ```
-4. **Proxy frontend API calls to the backend during development**
-   - Add a dev proxy to `client/vite.config.ts` so `/api` calls from the browser go to the Node server when running `npm run dev`:
-     ```ts
-     import { defineConfig } from 'vite';
-     import react from '@vitejs/plugin-react';
+### API surface
+JSON endpoints cover CRUD for core entities plus an Excel-compatible export:
 
-     export default defineConfig({
-       plugins: [react()],
-       server: {
-         proxy: {
-           '/api': 'http://localhost:3000',
-           '/clients': 'http://localhost:3000',
-           '/publications': 'http://localhost:3000',
-           '/media-mentions': 'http://localhost:3000',
-         },
-       },
-     });
-     ```
-   - Restart the Vite dev server after saving the proxy settings: `cd client && npm run dev`
-5. **Open the app**
-   - Visit the Vite dev URL (default `http://localhost:5173`). The “Clients” page can now add mentions locally and the “Export” button will hit the backend because `/api/clients/:id/mentions/export` is forwarded through the proxy.
-
-If you prefer to avoid a proxy, you can also run `npm run build` in `client/` and serve the static `client/dist` output from any web server that forwards `/api` requests to the Node process on port 3000.
-
-### Inspecting the SQLite database in DB Browser for SQLite
-
-Use DB Browser for SQLite to view the generated database file while the app is running or after it has created data.
-
-1. Start the backend once so it creates the database at the configured `DATABASE_URL` (defaults to `./data/mediamentions.db`).
-2. Open DB Browser for SQLite (downloadable from https://sqlitebrowser.org/).
-3. Choose **File → Open Database...** and select the `data/mediamentions.db` file from the repository root.
-4. Navigate to the **Browse Data** tab to inspect tables like `clients`, `publications`, and `media_mentions`. Use the **Execute SQL** tab to run ad hoc queries if needed.
-
-If you override `DATABASE_URL`, open that file instead; DB Browser will follow the full path.
-
-# Mentions
-
-This repository hosts a lightweight Node.js HTTP server at the repository root and a React single-page application in the `client/` workspace. Use this layout to keep backend and frontend dependencies separated while sharing a single git repository.
-
-## Backend
-
-A Node.js server exposes CRUD APIs for clients, publications, press releases, media mentions, feedback summaries, and search jobs. Data is stored in SQLite and the database schema is created automatically when the server starts.
-
-### Environment
-
-Set these environment variables (or rely on defaults):
-
-- `PORT` – Port to bind the HTTP server. Defaults to `3000`.
-- `DATABASE_URL` – Path to the SQLite database file. Defaults to `./data/mediamentions.db`.
-
-### Running locally
-
-1. Ensure Node.js 22+ and the `sqlite3` CLI are available in your shell (both are present in the container).
-2. Start the server (creates the database if missing):
-
-   ```bash
-   npm start
-   ```
-
-3. For a no-hassle local environment with sample data, run instead:
-
-   ```bash
-   npm run dev
-   ```
-
-### API overview
-
-All endpoints accept and respond with JSON, except for the Excel export which returns an Excel-compatible XML file.
-
-- **Clients:** `GET/POST /clients`, `GET/PUT/DELETE /clients/:id`
-- **Publications:** `GET/POST /publications`, `GET/PUT/DELETE /publications/:id`
-- **Press releases:** `GET/POST /press-releases`, `GET/PUT/DELETE /press-releases/:id`
-- **Media mentions:** `GET/POST /media-mentions`, `GET/PUT/DELETE /media-mentions/:id`
+- Clients: `GET/POST /clients`, `GET/PUT/DELETE /clients/:id`
+- Publications: `GET/POST /publications`, `GET/PUT/DELETE /publications/:id`
+- Press releases: `GET/POST /press-releases`, `GET/PUT/DELETE /press-releases/:id`
+- Media mentions: `GET/POST /media-mentions`, `GET/PUT/DELETE /media-mentions/:id`
   - Filtered listing: `GET /media-mentions?clientId=&publicationId=&pressReleaseId=&startDate=&endDate=&subject=`
-- **Feedback summaries:** `GET/POST /feedback-summaries`, `GET/PUT/DELETE /feedback-summaries/:id`
-- **Search jobs:** `GET/POST /search-jobs`, `GET/PUT/DELETE /search-jobs/:id`
-- **Excel export:** `GET /clients/:id/mentions/export?publicationId=&startDate=&endDate=`
+- Feedback summaries: `GET/POST /feedback-summaries`, `GET/PUT/DELETE /feedback-summaries/:id`
+- Search jobs: `GET/POST /search-jobs`, `GET/PUT/DELETE /search-jobs/:id`
+- Excel export: `GET /clients/:id/mentions/export?publicationId=&startDate=&endDate=`
 
-### Notes
+Exports return SpreadsheetML XML without external dependencies. Error responses are JSON.
 
-- An Excel-compatible XML export is generated without external dependencies. It includes the columns Date, Publication, Title, Subject Matter, Re-Mention Date, and Link for the filtered client mentions.
-- Because the app uses the SQLite CLI directly, no third-party Node packages are required to run the backend.
+## Running the scheduler
+The scheduler simulates daily provider queries for each active press release and records unverified mentions.
+
+- Run once and exit:
+
+  ```bash
+  npm run scheduler:once
+  ```
+
+- Start the cron-driven scheduler (runs immediately, then on the configured time in UTC):
+
+  ```bash
+  npm run scheduler
+  ```
+
+Scheduler configuration (defaults are in `src/config.js`):
+
+- `SCHEDULE_TIME` – Daily run time in 24h `HH:MM` format (default: `03:00`).
+- `GOOGLE_API_KEY`, `BING_API_KEY`, `CUSTOM_SEARCH_KEY`, `INBOX_TOKEN` – Stub keys used by provider simulations.
+- `MAX_RESULTS_PER_PROVIDER` – Cap on results fetched per provider (default: `10`).
 
 ## Frontend (`client/`)
+The React SPA expects the backend routes above. During development, proxy API calls to the Node server from the Vite dev server:
 
-The React + Vite app is built with TypeScript and MUI.
+```ts
+// client/vite.config.ts
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/clients': 'http://localhost:3000',
+      '/publications': 'http://localhost:3000',
+      '/media-mentions': 'http://localhost:3000',
+    },
+  },
+});
+```
 
-### Frontend quick start
+Run from the `client/` directory:
 
-1. `cd client`
-2. Install dependencies: `npm install`
-3. Run the dev server: `npm run dev`
-4. Build for production: `npm run build`
+```bash
+npm run dev   # start Vite
+npm run build # produce static assets
+```
 
-The client assumes the backend exposes the endpoints above, including the Excel export for client mentions. Update the frontend environment variables or request URLs as needed to match the backend.
+## Inspecting the SQLite database
+1. Start the backend once so the database exists at `./data/mediamentions.db` (or your `DATABASE_URL`).
+2. Open the file with [DB Browser for SQLite](https://sqlitebrowser.org/).
+3. Browse tables such as `clients`, `publications`, `pressReleases`, `mediaMentions`, and `searchJobs`, or run ad hoc SQL queries.
