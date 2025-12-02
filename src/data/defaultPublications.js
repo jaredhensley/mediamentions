@@ -8,5 +8,6 @@ module.exports = [
   { name: 'FreshFruit Portal', website: 'https://www.freshfruitportal.com' },
   { name: 'Fresh Plaza', website: 'https://www.freshplaza.com' },
   { name: 'Fruit Grower News', website: 'https://fruitgrowersnews.com' },
-  { name: 'Vegetable Grower News', website: 'https://vegetablegrowersnews.com' }
+  { name: 'Vegetable Grower News', website: 'https://vegetablegrowersnews.com' },
+  { name: 'Unknown Source', website: null }
 ];
