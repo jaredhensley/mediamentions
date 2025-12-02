@@ -3,7 +3,7 @@ import { Card, CardContent, Grid, Link, List, ListItem, ListItemText, Stack, Typ
 import { useNavigate } from 'react-router-dom';
 import { fetchClients, fetchMentions } from '../api';
 import { Client, Mention } from '../data';
-import { formatDisplayDate } from '../utils/format';
+import { formatDisplayDate, formatRelativeTime } from '../utils/format';
 
 export default function DashboardPage() {
   const [mentions, setMentions] = useState<Mention[]>([]);
@@ -21,10 +21,9 @@ export default function DashboardPage() {
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
-  const sortedMentions = useMemo(
-    () => [...mentions].sort((a, b) => (a.mentionDate > b.mentionDate ? -1 : 1)),
-    [mentions],
-  );
+  const sortedMentions = useMemo(() => {
+    return [...mentions].sort((a, b) => new Date(b.mentionDate).getTime() - new Date(a.mentionDate).getTime());
+  }, [mentions]);
   const todaysMentions = useMemo(
     () => sortedMentions.filter((mention) => mention.mentionDate.slice(0, 10) === today),
     [sortedMentions, today],
@@ -81,6 +80,9 @@ export default function DashboardPage() {
                       <>
                         <Typography component="span" color="text.primary" sx={{ mr: 1 }}>
                           {formatDisplayDate(mention.mentionDate)}
+                          {formatRelativeTime(mention.mentionDate)
+                            ? ` • ${formatRelativeTime(mention.mentionDate)}`
+                            : ''}
                         </Typography>
                         <Link
                           component="button"

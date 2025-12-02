@@ -58,21 +58,36 @@ export default function ClientsPage() {
       .catch((err) => setError(err.message));
   }, []);
 
-  useEffect(() => {
-    if (!clientList.length) return;
-    const paramId = Number(searchParams.get('clientId'));
-    if (paramId && clientList.some((c) => c.id === paramId)) {
-      setSelectedClientId(paramId);
-    } else if (!selectedClientId) {
-      setSelectedClientId(clientList[0]?.id || '');
-    }
-  }, [clientList, searchParams, selectedClientId]);
+  const paramClientId = useMemo(() => {
+    const fromParam = searchParams.get('clientId');
+    return fromParam ? Number(fromParam) : null;
+  }, [searchParams]);
 
   useEffect(() => {
-    if (selectedClientId) {
-      setSearchParams({ clientId: String(selectedClientId) });
+    if (!clientList.length) return;
+
+    if (paramClientId && clientList.some((c) => c.id === paramClientId)) {
+      if (selectedClientId !== paramClientId) {
+        setSelectedClientId(paramClientId);
+      }
+      return;
     }
-  }, [selectedClientId, setSearchParams]);
+
+    if (!selectedClientId) {
+      setSelectedClientId(clientList[0]?.id || '');
+    }
+  }, [clientList, paramClientId, selectedClientId]);
+
+  useEffect(() => {
+    if (!selectedClientId) return;
+
+    const currentParam = searchParams.get('clientId');
+    if (currentParam === String(selectedClientId)) {
+      return;
+    }
+
+    setSearchParams({ clientId: String(selectedClientId) });
+  }, [selectedClientId, searchParams, setSearchParams]);
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
 

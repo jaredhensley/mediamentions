@@ -68,26 +68,70 @@ function formatDisplayDate(value) {
 }
 
 function buildExcelXml(rows, { clientName } = {}) {
+  const styles = `
+    <Styles>
+      <Style ss:ID="Title">
+        <Font ss:Bold="1" ss:Size="14" />
+      </Style>
+      <Style ss:ID="Header">
+        <Font ss:Bold="1" />
+        <Alignment ss:Horizontal="Center" ss:Vertical="Center" />
+        <Interior ss:Color="#E8EDF5" ss:Pattern="Solid" />
+        <Borders>
+          <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" />
+        </Borders>
+      </Style>
+      <Style ss:ID="Cell">
+        <Borders>
+          <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" />
+        </Borders>
+      </Style>
+      <Style ss:ID="Date" ss:Parent="Cell">
+        <NumberFormat ss:Format="mmm d, yyyy\ h:mm\ AM/PM" />
+      </Style>
+      <Style ss:ID="Link" ss:Parent="Cell">
+        <Font ss:Color="#0563C1" ss:Underline="Single" />
+      </Style>
+    </Styles>`;
+
+  const columns = [
+    { title: 'Date', width: 120, style: 'Date' },
+    { title: 'Publication Name', width: 180, style: 'Cell' },
+    { title: 'Title', width: 300, style: 'Cell' },
+    { title: 'Topic', width: 160, style: 'Cell' },
+    { title: 'Additional Mentions', width: 160, style: 'Cell' },
+    { title: 'Link', width: 220, style: 'Link' },
+  ];
+
   const header = `<?xml version="1.0"?>
   <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
     xmlns:o="urn:schemas-microsoft-com:office:office"
     xmlns:x="urn:schemas-microsoft-com:office:excel"
     xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+    ${styles}
     <Worksheet ss:Name="Media Mentions">
       <Table>`;
   const footer = '</Table></Worksheet></Workbook>';
-  const columns = ['Date', 'Publication Name', 'Title', 'Topic', 'Additional Mentions', 'Link'];
   const titleRow = clientName
-    ? `<Row><Cell ss:MergeAcross="${columns.length - 1}"><Data ss:Type="String">${escapeXml(
+    ? `<Row><Cell ss:MergeAcross="${columns.length - 1}" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(
         `${clientName} Media Mentions`,
       )}</Data></Cell></Row>`
     : '';
+  const columnDefs = columns
+    .map((col) => `<Column ss:AutoFitWidth="0" ss:Width="${col.width}" />`)
+    .join('');
   const headerRow = `<Row>${columns
-    .map((title) => `<Cell><Data ss:Type="String">${escapeXml(title)}</Data></Cell>`)
+    .map((col) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(col.title)}</Data></Cell>`)
     .join('')}</Row>`;
   const dataRows = rows
     .map((row) => {
-      const cells = [
+      const values = [
         formatDisplayDate(row.mentionDate) || '',
         row.source || row.publicationName || '',
         row.title || '',
@@ -95,13 +139,18 @@ function buildExcelXml(rows, { clientName } = {}) {
         formatDisplayDate(row.reMentionDate) || '',
         row.link || '',
       ];
-      return `<Row>${cells
-        .map((value) => `<Cell><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`)
+
+      return `<Row>${values
+        .map((value, idx) => {
+          const style = columns[idx].style;
+          const hrefAttr = idx === 5 && value ? ` ss:HRef="${escapeXml(value)}"` : '';
+          return `<Cell ss:StyleID="${style}"${hrefAttr}><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
+        })
         .join('')}</Row>`;
     })
     .join('');
 
-  return `${header}${titleRow}${headerRow}${dataRows}${footer}`;
+  return `${header}${columnDefs}${titleRow}${headerRow}${dataRows}${footer}`;
 }
 
 function buildUpdateFields(body, allowedKeys) {
@@ -735,6 +784,7 @@ const routes = [
   { method: 'DELETE', pattern: '/search-jobs/:id', handler: deleteSearchJob },
 
   { method: 'GET', pattern: '/clients/:id/mentions/export', handler: exportMentions },
+  { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
 ];
 
 const server = http.createServer(async (req, res) => {
