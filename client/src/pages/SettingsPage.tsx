@@ -1,19 +1,18 @@
-import { FormControlLabel, Stack, Switch, Typography } from '@mui/material';
-import { useState } from 'react';
+import { FormControlLabel, Stack, Switch, Typography, useTheme } from '@mui/material';
+import { useColorMode } from '../theme';
 
 export default function SettingsPage() {
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const { toggle } = useColorMode();
+  const theme = useTheme();
 
   return (
     <Stack spacing={2}>
       <Typography variant="h4">Settings</Typography>
       <FormControlLabel
-        control={<Switch checked={emailAlerts} onChange={(e) => setEmailAlerts(e.target.checked)} />}
-        label="Email alerts for new mentions"
+        control={<Switch checked={theme.palette.mode === 'dark'} onChange={toggle} />}
+        label="Enable dark mode"
       />
-      <FormControlLabel control={<Switch checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />} label="Enable dark mode" />
-      <Typography color="text.secondary">These toggles are local-only for demo purposes.</Typography>
+      <Typography color="text.secondary">Theme preference is saved locally in your browser.</Typography>
     </Stack>
   );
 }

@@ -1,22 +1,16 @@
-const { mediaMentions, publications } = require('../data/store');
+const { runQuery } = require('../db');
 
 function normalizeResult(result, client) {
   const domain = extractDomain(result.url);
-  const publication = domain || 'unknown';
-
-  if (domain && !publications[domain]) {
-    publications[domain] = {
-      domain,
-      mentions: 0,
-      lastSeenAt: null
-    };
-  }
+  const source = domain || 'Unknown source';
+  const sentiment = analyzeSentiment(result.title, result.snippet || '');
 
   return {
     ...result,
     clientId: client.id,
     clientName: client.name,
-    publication,
+    source,
+    sentiment,
     normalizedUrl: result.url.toLowerCase(),
     matchedPressReleaseId: null
   };
@@ -58,33 +52,107 @@ function associatePressRelease(result, pressReleases) {
 
 function recordMentions(results, status) {
   const created = [];
+  const publicationCache = new Map();
+
   for (const result of results) {
-    const mention = {
-      id: mediaMentions.length + 1,
-      clientId: result.clientId,
-      publication: result.publication,
-      url: result.url,
-      title: result.title,
-      snippet: result.snippet,
-      provider: result.provider,
-      publishedAt: result.publishedAt,
-      status,
-      matchedPressReleaseId: result.matchedPressReleaseId,
-      createdAt: new Date().toISOString()
-    };
-    mediaMentions.push(mention);
-    if (publications[result.publication]) {
-      publications[result.publication].mentions += 1;
-      publications[result.publication].lastSeenAt = mention.createdAt;
+    const duplicate = runQuery('SELECT id FROM mediaMentions WHERE link=@p0 AND clientId=@p1 LIMIT 1;', [
+      result.url,
+      result.clientId
+    ]);
+
+    if (duplicate.length) {
+      // Already stored for this client; skip creating a duplicate entry.
+      // eslint-disable-next-line no-continue
+      continue;
     }
+
+    const publicationId = ensurePublication(result.source, publicationCache);
+    if (!publicationId) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    const now = new Date().toISOString();
+    const mentionDate = normalizeDate(result.publishedAt) || now;
+
+    const [mention] = runQuery(
+      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;',
+      [
+        result.title,
+        result.snippet || status || 'Mention',
+        mentionDate,
+        null,
+        result.url,
+        result.source,
+        result.sentiment || null,
+        status,
+        result.clientId,
+        publicationId,
+        result.matchedPressReleaseId || null,
+        now
+      ]
+    );
+
     created.push(mention);
   }
+
   return created;
+}
+
+function normalizeDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function ensurePublication(domain, cache) {
+  const cacheKey = domain || 'unknown';
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
+  const websitePattern = domain ? `%${domain}%` : '%';
+  const [existing] = domain
+    ? runQuery(
+        'SELECT id FROM publications WHERE LOWER(website) LIKE LOWER(@p0) OR LOWER(name) = LOWER(@p1) LIMIT 1;',
+        [websitePattern, domain]
+      ) || []
+    : [];
+
+  if (existing && existing.id) {
+    cache.set(cacheKey, existing.id);
+    return existing.id;
+  }
+
+  const [unknown] =
+    runQuery('SELECT id FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', ['unknown source']) || [];
+
+  if (unknown && unknown.id) {
+    cache.set(cacheKey, unknown.id);
+    return unknown.id;
+  }
+
+  return null;
+}
+
+function analyzeSentiment(title, snippet) {
+  const text = `${title} ${snippet}`.toLowerCase();
+  const positives = ['good', 'great', 'positive', 'growth', 'success', 'win', 'expands', 'improves'];
+  const negatives = ['bad', 'decline', 'negative', 'loss', 'drop', 'lawsuit', 'fails', 'cuts'];
+
+  const positiveHits = positives.some((word) => text.includes(word));
+  const negativeHits = negatives.some((word) => text.includes(word));
+
+  if (positiveHits && !negativeHits) return 'positive';
+  if (negativeHits && !positiveHits) return 'negative';
+  return 'neutral';
 }
 
 module.exports = {
   normalizeResult,
   dedupeMentions,
   associatePressRelease,
-  recordMentions
+  recordMentions,
+  extractDomain
 };
