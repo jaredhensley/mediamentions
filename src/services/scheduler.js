@@ -22,10 +22,23 @@ function cronExpressionFromSchedule(schedule) {
   return `${schedule.minutes} ${schedule.hours} * * *`;
 }
 
+function getNextRunDate(task) {
+  if (typeof task.nextDates === 'function') {
+    return task.nextDates();
+  }
+
+  if (typeof task.getNextDates === 'function') {
+    return task.getNextDates();
+  }
+
+  throw new Error('Scheduled task does not expose next run calculation');
+}
+
 function logNextRun(task) {
   try {
-    const next = task.nextDates().toJSDate();
-    console.log(`[scheduler] next run scheduled for ${next.toISOString()}`);
+    const next = getNextRunDate(task);
+    const nextDate = typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
+    console.log(`[scheduler] next run scheduled for ${nextDate.toISOString()}`);
   } catch (err) {
     console.warn('[scheduler] unable to compute next run time', err.message);
   }
