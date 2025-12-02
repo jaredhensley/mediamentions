@@ -12,7 +12,7 @@ import {
   Stack,
   TextField,
 } from '@mui/material';
-import { Mention, publications } from '../data';
+import { Mention, Publication } from '../data';
 
 export type MentionFormData = Omit<Mention, 'id'>;
 
@@ -21,23 +21,26 @@ interface MentionFormModalProps {
   onClose: () => void;
   onSave: (data: MentionFormData) => void;
   initial?: MentionFormData;
+  publicationOptions: Publication[];
 }
 
-export default function MentionFormModal({ open, onClose, onSave, initial }: MentionFormModalProps) {
+export default function MentionFormModal({ open, onClose, onSave, initial, publicationOptions }: MentionFormModalProps) {
   const [formState, setFormState] = useState<MentionFormData>(
     initial || {
       title: '',
-      date: new Date().toISOString().slice(0, 10),
-      publicationId: publications[0]?.id || '',
+      mentionDate: new Date().toISOString().slice(0, 10),
+      publicationId: publicationOptions[0]?.id || 0,
       sentiment: 'neutral',
       status: 'new',
-      summary: '',
-      clientId: '',
-      pressReleaseId: '',
+      subjectMatter: '',
+      clientId: 0,
+      pressReleaseId: null,
+      link: '',
+      reMentionDate: null,
     },
   );
 
-  const handleChange = (key: keyof MentionFormData, value: string) => {
+  const handleChange = (key: keyof MentionFormData, value: string | number | null) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -61,8 +64,8 @@ export default function MentionFormModal({ open, onClose, onSave, initial }: Men
             type="date"
             label="Date"
             InputLabelProps={{ shrink: true }}
-            value={formState.date}
-            onChange={(e) => handleChange('date', e.target.value)}
+            value={formState.mentionDate}
+            onChange={(e) => handleChange('mentionDate', e.target.value)}
             fullWidth
           />
           <FormControl fullWidth>
@@ -71,9 +74,9 @@ export default function MentionFormModal({ open, onClose, onSave, initial }: Men
               labelId="publication-label"
               label="Publication"
               value={formState.publicationId}
-              onChange={(e) => handleChange('publicationId', e.target.value)}
+              onChange={(e) => handleChange('publicationId', Number(e.target.value))}
             >
-              {publications.map((pub) => (
+              {publicationOptions.map((pub) => (
                 <MenuItem key={pub.id} value={pub.id}>
                   {pub.name}
                 </MenuItem>
@@ -102,23 +105,29 @@ export default function MentionFormModal({ open, onClose, onSave, initial }: Men
             </Select>
           </FormControl>
           <TextField
-            label="Summary"
+            label="Subject matter"
             multiline
             minRows={3}
-            value={formState.summary}
-            onChange={(e) => handleChange('summary', e.target.value)}
+            value={formState.subjectMatter || ''}
+            onChange={(e) => handleChange('subjectMatter', e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="Link"
+            value={formState.link || ''}
+            onChange={(e) => handleChange('link', e.target.value)}
             fullWidth
           />
           <TextField
             label="Client ID (optional)"
             value={formState.clientId || ''}
-            onChange={(e) => handleChange('clientId', e.target.value)}
+            onChange={(e) => handleChange('clientId', Number(e.target.value) || 0)}
             fullWidth
           />
           <TextField
             label="Press Release ID (optional)"
             value={formState.pressReleaseId || ''}
-            onChange={(e) => handleChange('pressReleaseId', e.target.value)}
+            onChange={(e) => handleChange('pressReleaseId', Number(e.target.value) || null)}
             fullWidth
           />
         </Stack>

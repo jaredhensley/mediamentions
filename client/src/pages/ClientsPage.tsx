@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -20,21 +20,42 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { clients as initialClients, mentions as initialMentions, pressReleases as initialPressReleases, publications } from '../data';
+import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications } from '../api';
+import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
 
 export default function ClientsPage() {
-  const [clientList, setClientList] = useState(initialClients);
-  const [selectedClientId, setSelectedClientId] = useState(initialClients[0]?.id || '');
+  const [clientList, setClientList] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<number | ''>('');
   const [tab, setTab] = useState<'press' | 'mentions'>('press');
-  const [mentions, setMentions] = useState(initialMentions);
-  const [pressReleases, setPressReleases] = useState(initialPressReleases);
+  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
+  const [publicationList, setPublicationList] = useState<Publication[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState({ name: '', industry: '', notes: '' });
+
+  useEffect(() => {
+    fetchClients()
+      .then((data) => {
+        setClientList(data);
+        setSelectedClientId(data[0]?.id || '');
+      })
+      .catch((err) => setError(err.message));
+    fetchMentions()
+      .then(setMentions)
+      .catch((err) => setError(err.message));
+    fetchPressReleases()
+      .then(setPressReleases)
+      .catch((err) => setError(err.message));
+    fetchPublications()
+      .then(setPublicationList)
+      .catch((err) => setError(err.message));
+  }, []);
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
 
@@ -56,11 +77,11 @@ export default function ClientsPage() {
   );
 
   const handleMentionSave = (data: MentionFormData) => {
-    setMentions((prev) => [...prev, { ...data, id: `mention-${prev.length + 1}` }]);
+    setMentions((prev) => [...prev, { ...data, id: prev.length + 1 }]);
   };
 
   const handlePressSave = (data: PressReleaseFormData) => {
-    setPressReleases((prev) => [...prev, { ...data, id: `pr-${prev.length + 1}` }]);
+    setPressReleases((prev) => [...prev, { ...data, id: prev.length + 1 }]);
   };
 
   const handleClientSave = () => {
@@ -69,8 +90,9 @@ export default function ClientsPage() {
       return;
     }
 
+    const nextId = clientList.length ? Math.max(...clientList.map((c) => c.id)) + 1 : 1;
     const newClient = {
-      id: crypto.randomUUID ? crypto.randomUUID() : `client-${Date.now()}`,
+      id: nextId,
       name: trimmedName,
       industry: clientForm.industry.trim() || 'General',
       notes: clientForm.notes.trim(),
@@ -100,6 +122,7 @@ export default function ClientsPage() {
   return (
     <Stack spacing={3}>
       <Typography variant="h4">Clients</Typography>
+      {error && <Typography color="error">{error}</Typography>}
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <Card>
@@ -147,7 +170,7 @@ export default function ClientsPage() {
                       onClick={() => setSelectedClientId(client.id)}
                     >
                       <TableCell>{client.name}</TableCell>
-                      <TableCell>{client.industry}</TableCell>
+                      <TableCell>{client.industry || 'N/A'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -186,9 +209,9 @@ export default function ClientsPage() {
                     <Card key={pr.id} variant="outlined">
                       <CardContent>
                         <Typography variant="subtitle1">{pr.title}</Typography>
-                        <Typography color="text.secondary">{pr.date}</Typography>
-                        <Chip size="small" label={pr.status} sx={{ mt: 1 }} />
-                        <Typography sx={{ mt: 1 }}>{pr.body}</Typography>
+                        <Typography color="text.secondary">{pr.date || pr.releaseDate}</Typography>
+                        <Chip size="small" label={pr.status || 'draft'} sx={{ mt: 1 }} />
+                        <Typography sx={{ mt: 1 }}>{pr.body || pr.content}</Typography>
                       </CardContent>
                     </Card>
                   ))}
@@ -237,12 +260,12 @@ export default function ClientsPage() {
                       {clientMentions.map((mention) => (
                         <TableRow key={mention.id}>
                           <TableCell>{mention.title}</TableCell>
-                          <TableCell>{publications.find((p) => p.id === mention.publicationId)?.name}</TableCell>
+                          <TableCell>{publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
                           <TableCell>
-                            <Chip label={mention.sentiment} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
+                            <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
                           </TableCell>
                           <TableCell>{mention.status}</TableCell>
-                          <TableCell>{mention.date}</TableCell>
+                          <TableCell>{mention.mentionDate}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -255,7 +278,12 @@ export default function ClientsPage() {
         </Grid>
       </Grid>
 
-      <MentionFormModal open={mentionModalOpen} onClose={() => setMentionModalOpen(false)} onSave={handleMentionSave} />
+      <MentionFormModal
+        open={mentionModalOpen}
+        onClose={() => setMentionModalOpen(false)}
+        onSave={handleMentionSave}
+        publicationOptions={publicationList}
+      />
       <PressReleaseFormModal
         open={pressModalOpen}
         onClose={() => setPressModalOpen(false)}

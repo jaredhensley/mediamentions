@@ -1,18 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, Card, CardContent, Chip, Grid, List, ListItem, ListItemText, Stack, Typography } from '@mui/material';
-import { clients, mentions, pressReleases as initialPressReleases } from '../data';
+import { fetchClients, fetchMentions, fetchPressReleases } from '../api';
+import { Client, Mention, PressRelease } from '../data';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
 
 export default function PressReleasesPage() {
-  const [pressReleases, setPressReleases] = useState(initialPressReleases);
-  const [selectedId, setSelectedId] = useState(initialPressReleases[0]?.id || '');
+  const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
+  const [selectedId, setSelectedId] = useState<number | ''>('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [clientsList, setClientsList] = useState<Client[]>([]);
+  const [mentionsList, setMentionsList] = useState<Mention[]>([]);
+
+  useEffect(() => {
+    fetchPressReleases()
+      .then((data) => {
+        setPressReleases(data);
+        setSelectedId(data[0]?.id || '');
+      })
+      .catch(() => {});
+    fetchClients()
+      .then(setClientsList)
+      .catch(() => {});
+    fetchMentions()
+      .then(setMentionsList)
+      .catch(() => {});
+  }, []);
 
   const selected = pressReleases.find((pr) => pr.id === selectedId);
-  const relatedMentions = mentions.filter((mention) => mention.pressReleaseId === selectedId);
+  const relatedMentions = mentionsList.filter((mention) => mention.pressReleaseId === selectedId);
 
   const handleSave = (data: PressReleaseFormData) => {
-    const newRelease = { ...data, id: `pr-${pressReleases.length + 1}` };
+    const newRelease = { ...data, id: pressReleases.length + 1 };
     setPressReleases((prev) => [...prev, newRelease]);
     setSelectedId(newRelease.id);
   };
@@ -35,8 +53,11 @@ export default function PressReleasesPage() {
               <List>
                 {pressReleases.map((pr) => (
                   <ListItem key={pr.id} divider button onClick={() => setSelectedId(pr.id)} selected={pr.id === selectedId}>
-                    <ListItemText primary={pr.title} secondary={`${pr.date} • ${clients.find((c) => c.id === pr.clientId)?.name}`} />
-                    <Chip label={pr.status} size="small" />
+                    <ListItemText
+                      primary={pr.title}
+                      secondary={`${pr.date || pr.releaseDate} • ${clientsList.find((c) => c.id === pr.clientId)?.name || 'N/A'}`}
+                    />
+                    <Chip label={pr.status || 'draft'} size="small" />
                   </ListItem>
                 ))}
               </List>
@@ -50,10 +71,10 @@ export default function PressReleasesPage() {
                 <Stack spacing={2}>
                   <Box>
                     <Typography variant="h6">{selected.title}</Typography>
-                    <Typography color="text.secondary">{selected.date}</Typography>
-                    <Chip label={selected.status} size="small" sx={{ mt: 1 }} />
+                    <Typography color="text.secondary">{selected.date || selected.releaseDate}</Typography>
+                    <Chip label={selected.status || 'draft'} size="small" sx={{ mt: 1 }} />
                   </Box>
-                  <Typography>{selected.body}</Typography>
+                  <Typography>{selected.body || selected.content}</Typography>
                   <DividerHeading title="Related mentions" />
                   {relatedMentions.length === 0 ? (
                     <Typography color="text.secondary">No related mentions.</Typography>
@@ -61,7 +82,7 @@ export default function PressReleasesPage() {
                     <List>
                       {relatedMentions.map((mention) => (
                         <ListItem key={mention.id} divider>
-                          <ListItemText primary={mention.title} secondary={mention.summary} />
+                          <ListItemText primary={mention.title} secondary={mention.subjectMatter} />
                         </ListItem>
                       ))}
                     </List>
@@ -79,7 +100,7 @@ export default function PressReleasesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
-        clients={clients}
+        clients={clientsList}
       />
     </Stack>
   );

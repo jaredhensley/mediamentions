@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material';
 import { Publication } from '../data';
 
@@ -11,17 +11,21 @@ interface Props {
   initial?: PublicationFormData;
 }
 
-export default function PublicationFormModal({ open, onClose, onSave, initial }: Props) {
-  const [formState, setFormState] = useState<PublicationFormData>(
-    initial || { name: '', url: '', region: '' },
-  );
+const defaultState: PublicationFormData = { name: '', website: '', clientId: null };
 
-  const handleChange = (key: keyof PublicationFormData, value: string) => {
-    setFormState((prev) => ({ ...prev, [key]: value }));
-  };
+export default function PublicationFormModal({ open, onClose, onSave, initial }: Props) {
+  const [formState, setFormState] = useState<PublicationFormData>(defaultState);
+
+  useEffect(() => {
+    setFormState(initial || defaultState);
+  }, [initial]);
 
   const handleSave = () => {
-    onSave(formState);
+    onSave({
+      ...formState,
+      website: formState.website?.trim() || null,
+      name: formState.name.trim(),
+    });
     onClose();
   };
 
@@ -30,14 +34,35 @@ export default function PublicationFormModal({ open, onClose, onSave, initial }:
       <DialogTitle>{initial ? 'Edit publication' : 'Create publication'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Name" value={formState.name} onChange={(e) => handleChange('name', e.target.value)} fullWidth />
-          <TextField label="URL" value={formState.url} onChange={(e) => handleChange('url', e.target.value)} fullWidth />
-          <TextField label="Region" value={formState.region} onChange={(e) => handleChange('region', e.target.value)} fullWidth />
+          <TextField
+            label="Name"
+            value={formState.name}
+            onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Website"
+            value={formState.website ?? ''}
+            onChange={(e) => setFormState((prev) => ({ ...prev, website: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Client ID"
+            type="number"
+            value={formState.clientId ?? ''}
+            onChange={(e) =>
+              setFormState((prev) => ({
+                ...prev,
+                clientId: e.target.value === '' ? null : Number(e.target.value),
+              }))
+            }
+            fullWidth
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button variant="contained" onClick={handleSave} disabled={!formState.name.trim()}>
           Save
         </Button>
       </DialogActions>
