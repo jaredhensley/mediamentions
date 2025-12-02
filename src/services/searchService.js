@@ -16,10 +16,13 @@ async function runProvider(providerName, query, jobLog) {
     throw new Error(`Unknown provider: ${providerName}`);
   }
   try {
+    console.log(`[providers] ${providerName} → searching for "${query}"`);
     const results = await provider(query, { maxResults: searchConfig.maxResultsPerProvider });
     jobLog.providerRuns.push({ provider: providerName, query, status: 'success', results: results.length });
+    console.log(`[providers] ${providerName} ✓ returned ${results.length} results for "${query}"`);
     return results;
   } catch (err) {
+    console.warn(`[providers] ${providerName} ✗ failed for "${query}": ${err.message}`);
     jobLog.errors.push({ provider: providerName, query, message: err.message });
     jobLog.providerRuns.push({ provider: providerName, query, status: 'failed', error: err.message });
     return [];
