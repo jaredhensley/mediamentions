@@ -12,6 +12,7 @@ export type Mention = {
   subjectMatter?: string;
   reMentionDate?: string | null;
   link?: string;
+  source?: string | null;
   clientId: number;
   publicationId: number;
   pressReleaseId?: number | null;
@@ -34,6 +35,5 @@ export type Client = {
   id: number;
   name: string;
   contactEmail?: string;
-  industry?: string;
   notes?: string;
 };

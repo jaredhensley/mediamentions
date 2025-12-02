@@ -2,10 +2,20 @@ const http = require('http');
 const { initializeDatabase, runQuery } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
+const { scheduleDailySearch } = require('./services/scheduler');
 
 initializeDatabase();
 seedDefaultClients();
 seedDefaultPublications();
+
+// Kick off scheduled searches and run one immediately to populate mentions.
+(async () => {
+  try {
+    await scheduleDailySearch({ runImmediately: true });
+  } catch (err) {
+    console.error('[scheduler] failed to start search scheduler', err);
+  }
+})();
 
 const PORT = process.env.PORT || 3000;
 
@@ -44,36 +54,103 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
-function buildExcelXml(rows) {
+function formatDisplayDate(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function buildExcelXml(rows, { clientName } = {}) {
+  const styles = `
+    <Styles>
+      <Style ss:ID="Title">
+        <Font ss:Bold="1" ss:Size="14" />
+      </Style>
+      <Style ss:ID="Header">
+        <Font ss:Bold="1" />
+        <Alignment ss:Horizontal="Center" ss:Vertical="Center" />
+        <Interior ss:Color="#E8EDF5" ss:Pattern="Solid" />
+        <Borders>
+          <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" />
+        </Borders>
+      </Style>
+      <Style ss:ID="Cell">
+        <Borders>
+          <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" />
+          <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" />
+        </Borders>
+      </Style>
+      <Style ss:ID="Date" ss:Parent="Cell">
+        <NumberFormat ss:Format="mmm d, yyyy\ h:mm\ AM/PM" />
+      </Style>
+      <Style ss:ID="Link" ss:Parent="Cell">
+        <Font ss:Color="#0563C1" ss:Underline="Single" />
+      </Style>
+    </Styles>`;
+
+  const columns = [
+    { title: 'Date', width: 120, style: 'Date' },
+    { title: 'Publication Name', width: 180, style: 'Cell' },
+    { title: 'Title', width: 300, style: 'Cell' },
+    { title: 'Topic', width: 160, style: 'Cell' },
+    { title: 'Additional Mentions', width: 160, style: 'Cell' },
+    { title: 'Link', width: 220, style: 'Link' },
+  ];
+
   const header = `<?xml version="1.0"?>
   <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
     xmlns:o="urn:schemas-microsoft-com:office:office"
     xmlns:x="urn:schemas-microsoft-com:office:excel"
     xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+    ${styles}
     <Worksheet ss:Name="Media Mentions">
       <Table>`;
   const footer = '</Table></Worksheet></Workbook>';
-  const columns = ['Date', 'Publication', 'Title', 'Subject Matter', 'Re-Mention Date', 'Link'];
+  const titleRow = clientName
+    ? `<Row><Cell ss:MergeAcross="${columns.length - 1}" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(
+        `${clientName} Media Mentions`,
+      )}</Data></Cell></Row>`
+    : '';
+  const columnDefs = columns
+    .map((col) => `<Column ss:AutoFitWidth="0" ss:Width="${col.width}" />`)
+    .join('');
   const headerRow = `<Row>${columns
-    .map((title) => `<Cell><Data ss:Type="String">${escapeXml(title)}</Data></Cell>`)
+    .map((col) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(col.title)}</Data></Cell>`)
     .join('')}</Row>`;
   const dataRows = rows
     .map((row) => {
-      const cells = [
-        row.mentionDate || '',
-        row.publication || '',
+      const values = [
+        formatDisplayDate(row.mentionDate) || '',
+        row.source || row.publicationName || '',
         row.title || '',
         row.subjectMatter || '',
-        row.reMentionDate || '',
+        formatDisplayDate(row.reMentionDate) || '',
         row.link || '',
       ];
-      return `<Row>${cells
-        .map((value) => `<Cell><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`)
+
+      return `<Row>${values
+        .map((value, idx) => {
+          const style = columns[idx].style;
+          const hrefAttr = idx === 5 && value ? ` ss:HRef="${escapeXml(value)}"` : '';
+          return `<Cell ss:StyleID="${style}"${hrefAttr}><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
+        })
         .join('')}</Row>`;
     })
     .join('');
 
-  return `${header}${headerRow}${dataRows}${footer}`;
+  return `${header}${columnDefs}${titleRow}${headerRow}${dataRows}${footer}`;
 }
 
 function buildUpdateFields(body, allowedKeys) {
@@ -384,14 +461,17 @@ async function createMediaMention(req, res) {
     }
     const now = new Date().toISOString();
     const [mention] = runQuery(
-      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
-       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p8) RETURNING *;`,
+      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
+       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;`,
       [
         body.title,
         body.subjectMatter || '',
         body.mentionDate,
         body.reMentionDate || null,
         body.link || '',
+        body.source || null,
+        body.sentiment || null,
+        body.status || 'new',
         body.clientId,
         body.publicationId,
         body.pressReleaseId || null,
@@ -431,6 +511,9 @@ async function updateMediaMention(req, res, params) {
     'mentionDate',
     'reMentionDate',
     'link',
+    'source',
+    'sentiment',
+    'status',
     'clientId',
     'publicationId',
     'pressReleaseId',
@@ -630,6 +713,7 @@ async function exportMentions(_req, res, params) {
     sendJson(res, 400, { error: 'Invalid client id' });
     return;
   }
+  const [client] = runQuery('SELECT name FROM clients WHERE id=@p0;', [clientId]);
   const url = new URL(_req.url, 'http://localhost');
   const filters = ['mm.clientId=@p0'];
   const values = [clientId];
@@ -647,17 +731,17 @@ async function exportMentions(_req, res, params) {
   }
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const rows = runQuery(
-    `SELECT mm.mentionDate, p.name as publication, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
+    `SELECT mm.mentionDate, COALESCE(mm.source, p.name) as source, p.name as publicationName, mm.title, mm.subjectMatter, mm.reMentionDate, mm.link
      FROM mediaMentions mm
      LEFT JOIN publications p ON mm.publicationId = p.id
      ${whereClause}
      ORDER BY mm.mentionDate DESC, mm.id DESC;`,
     values,
   );
-  const xml = buildExcelXml(rows);
+  const xml = buildExcelXml(rows, { clientName: client?.name });
   res.writeHead(200, {
     'Content-Type': 'application/vnd.ms-excel',
-    'Content-Disposition': `attachment; filename="media-mentions-client-${clientId}.xls"`,
+    'Content-Disposition': `attachment; filename="media-mentions-${client?.name || clientId}.xls"`,
   });
   res.end(xml);
 }
@@ -700,6 +784,7 @@ const routes = [
   { method: 'DELETE', pattern: '/search-jobs/:id', handler: deleteSearchJob },
 
   { method: 'GET', pattern: '/clients/:id/mentions/export', handler: exportMentions },
+  { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
 ];
 
 const server = http.createServer(async (req, res) => {
