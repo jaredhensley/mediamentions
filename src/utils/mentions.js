@@ -75,11 +75,12 @@ function recordMentions(results, status) {
     const now = new Date().toISOString();
     const mentionDate = normalizeDate(result.publishedAt) || now;
 
+    const cleanedSnippet = cleanSnippet(result.snippet);
     const [mention] = runQuery(
       'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;',
       [
         result.title,
-        result.snippet || status || 'Mention',
+        cleanedSnippet || status || 'Mention',
         mentionDate,
         null,
         result.url,
@@ -104,6 +105,23 @@ function normalizeDate(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
+}
+
+function cleanSnippet(snippet) {
+  if (!snippet) return snippet;
+
+  // Remove Google's timestamp prefixes like "7 hours ago ...", "2 days ago ...", etc.
+  const timePatterns = [
+    /^\d+\s+(second|minute|hour|day|week|month|year)s?\s+ago\s*[.\-…]*\s*/i,
+    /^\d+\s+(sec|min|hr|hrs)s?\s+ago\s*[.\-…]*\s*/i
+  ];
+
+  let cleaned = snippet;
+  for (const pattern of timePatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  return cleaned.trim();
 }
 
 function ensurePublication(domain, cache) {
@@ -154,5 +172,6 @@ module.exports = {
   dedupeMentions,
   associatePressRelease,
   recordMentions,
-  extractDomain
+  extractDomain,
+  cleanSnippet
 };
