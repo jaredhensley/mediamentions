@@ -1,10 +1,17 @@
 const { scheduleDailySearch } = require('./services/scheduler');
 const { runSearchJob } = require('./services/searchService');
 const { mediaMentions, searchJobs } = require('./data/store');
+const { initializeDatabase } = require('./db');
+const { seedDefaultClients } = require('./utils/seedDefaultClients');
+const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 const runOnce = process.argv.includes('--once');
 
 async function start() {
+  initializeDatabase();
+  seedDefaultClients();
+  seedDefaultPublications();
+
   if (runOnce) {
     console.log('[startup] running single tracking job');
     const job = await runSearchJob();
