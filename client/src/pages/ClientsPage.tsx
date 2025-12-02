@@ -58,36 +58,23 @@ export default function ClientsPage() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const paramClientId = useMemo(() => {
-    const fromParam = searchParams.get('clientId');
-    return fromParam ? Number(fromParam) : null;
-  }, [searchParams]);
-
   useEffect(() => {
     if (!clientList.length) return;
 
-    if (paramClientId && clientList.some((c) => c.id === paramClientId)) {
-      if (selectedClientId !== paramClientId) {
-        setSelectedClientId(paramClientId);
-      }
-      return;
+    const paramIdRaw = searchParams.get('clientId');
+    const paramId = paramIdRaw ? Number(paramIdRaw) : null;
+    const validParamId = paramId && clientList.some((c) => c.id === paramId) ? paramId : null;
+    const fallbackId = clientList[0]?.id || '';
+    const nextId = validParamId || fallbackId;
+
+    if (nextId && selectedClientId !== nextId) {
+      setSelectedClientId(nextId);
     }
 
-    if (!selectedClientId) {
-      setSelectedClientId(clientList[0]?.id || '');
+    if (!validParamId && nextId) {
+      setSearchParams({ clientId: String(nextId) }, { replace: true });
     }
-  }, [clientList, paramClientId, selectedClientId]);
-
-  useEffect(() => {
-    if (!selectedClientId) return;
-
-    const currentParam = searchParams.get('clientId');
-    if (currentParam === String(selectedClientId)) {
-      return;
-    }
-
-    setSearchParams({ clientId: String(selectedClientId) });
-  }, [selectedClientId, searchParams, setSearchParams]);
+  }, [clientList, searchParams, selectedClientId, setSearchParams]);
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
 
@@ -190,7 +177,10 @@ export default function ClientsPage() {
                       hover
                       selected={client.id === selectedClientId}
                       sx={{ cursor: 'pointer' }}
-                      onClick={() => setSelectedClientId(client.id)}
+                      onClick={() => {
+                        setSelectedClientId(client.id);
+                        setSearchParams({ clientId: String(client.id) }, { replace: true });
+                      }}
                     >
                       <TableCell>{client.name}</TableCell>
                     </TableRow>
