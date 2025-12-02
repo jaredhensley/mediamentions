@@ -96,6 +96,8 @@ Copy `.env.example` to `.env` (or `.env.local`) and populate the Google variable
 ### Tuning client relevance
 Per-client search tuning (context words, excluded words, and domains to ignore) lives in `src/data/clientSearchProfiles.js`. Each entry controls how queries are constructed (exact phrase matches, context nudges, and `-site:` exclusions) and how results are filtered (must contain the client name, optional context-word check, and optional own-domain removal). Update or add entries there to adjust relevance without touching the core search flow.
 
+Copy `.env.example` to `.env` (or `.env.local`) and populate the Google variables **without wrapping them in quotes** to enable live Google queries. If your Google key is restricted to HTTP referrers, set `GOOGLE_REFERER` to a value allowed by the key (for local development, `http://localhost:3000` typically works). Environment files are gitignored (with `.env.example` kept for reference) so keys stay out of version control. The runtime automatically loads the `.env` file, so you can restart the scheduler or API after editing—no extra wiring is needed. The Google provider requests results from the last 24 hours using the Custom Search `dateRestrict=d1` parameter and caps results according to `MAX_RESULTS_PER_PROVIDER`.
+
 ## Frontend (`client/`)
 The React SPA expects the backend routes above. During development, proxy API calls to the Node server from the Vite dev server:
 
