@@ -34,10 +34,10 @@ function getPublishedDate(item) {
 
 async function googleSearch(query, { maxResults }) {
   if (!providerApiKeys.google) {
-    throw new Error('Missing Google API key');
+    throw new Error('Missing Google API key (set GOOGLE_API_KEY in your .env file)');
   }
   if (!providerConfig.googleSearchEngineId) {
-    throw new Error('Missing Google Custom Search Engine ID');
+    throw new Error('Missing Google Custom Search Engine ID (set GOOGLE_CSE_ID in your .env file)');
   }
 
   const num = Math.max(1, Math.min(10, maxResults));
