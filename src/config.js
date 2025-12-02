@@ -1,20 +1,97 @@
-const DEFAULT_SCHEDULE_TIME = process.env.SCHEDULE_TIME || '03:00';
+const fs = require('fs');
+const path = require('path');
 
-const providerApiKeys = {
-  google: process.env.GOOGLE_API_KEY || 'demo-google-key',
-  bing: process.env.BING_API_KEY || 'demo-bing-key',
-  customApi: process.env.CUSTOM_SEARCH_KEY || 'demo-custom-key',
-  inbox: process.env.INBOX_TOKEN || 'demo-inbox-token'
-};
+const rootDir = path.join(__dirname, '..');
+const envPath = path.join(rootDir, '.env');
+const exampleEnvPath = path.join(rootDir, '.env.example');
 
-const searchConfig = {
-  scheduleTime: DEFAULT_SCHEDULE_TIME,
-  providers: ['google', 'bing', 'customApi', 'inbox'],
-  maxResultsPerProvider: Number(process.env.MAX_RESULTS_PER_PROVIDER || 10),
-  mentionStatus: 'unverified'
-};
+function parseEnvFile(filePath) {
+  const result = {};
+  if (!fs.existsSync(filePath)) {
+    return result;
+  }
+  const content = fs.readFileSync(filePath, 'utf8');
+  content.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const [key, ...rest] = trimmed.split('=');
+    const value = rest.join('=');
+    if (key) {
+      result[key.trim()] = value.trim();
+    }
+  });
+  return result;
+}
 
-module.exports = {
-  providerApiKeys,
-  searchConfig
-};
+function serializeEnv(values) {
+  return Object.entries(values)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+}
+
+function writeEnvFile(values) {
+  const serialized = serializeEnv(values);
+  fs.writeFileSync(envPath, `${serialized}\n`, 'utf8');
+}
+
+function syncEnvFile() {
+  if (!fs.existsSync(exampleEnvPath) && !fs.existsSync(envPath)) {
+    return {};
+  }
+
+  const defaults = parseEnvFile(exampleEnvPath);
+  const existing = parseEnvFile(envPath);
+  const merged = { ...defaults, ...existing };
+  const trackedKeys = new Set([...Object.keys(defaults), ...Object.keys(existing)]);
+
+  trackedKeys.forEach((key) => {
+    if (process.env[key]) {
+      merged[key] = process.env[key];
+    }
+  });
+
+  const desiredContent = serializeEnv(merged);
+  const currentContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').trim() : '';
+  if (desiredContent !== currentContent) {
+    writeEnvFile(merged);
+  }
+
+  return merged;
+}
+
+function hydrateProcessEnv(values) {
+  Object.entries(values).forEach(([key, value]) => {
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  });
+}
+
+function resolveDatabasePath(rawPath) {
+  if (!rawPath) {
+    return path.join(rootDir, 'data', 'mediamentions.db');
+  }
+  if (path.isAbsolute(rawPath)) {
+    return rawPath;
+  }
+  return path.join(rootDir, rawPath);
+}
+
+function loadEnvironment() {
+  const mergedEnv = syncEnvFile();
+  const fallbackEnv = Object.keys(mergedEnv).length ? mergedEnv : parseEnvFile(exampleEnvPath);
+  hydrateProcessEnv(fallbackEnv);
+
+  const port = Number(process.env.PORT || fallbackEnv.PORT || 3000);
+  const databasePath = resolveDatabasePath(process.env.DATABASE_URL || fallbackEnv.DATABASE_URL);
+  const databaseDir = path.dirname(databasePath);
+  if (!fs.existsSync(databaseDir)) {
+    fs.mkdirSync(databaseDir, { recursive: true });
+  }
+
+  return { port, databasePath, rootDir };
+}
+
+const config = loadEnvironment();
+
+module.exports = { config, loadEnvironment };

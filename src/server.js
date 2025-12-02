@@ -1,9 +1,20 @@
 const http = require('http');
+const { config } = require('./config');
 const { initializeDatabase, runQuery } = require('./db');
+const { seedDevData } = require('./devSeed');
 
 initializeDatabase();
+const seedResults = seedDevData();
 
-const PORT = process.env.PORT || 3000;
+if (seedResults?.seeded) {
+  console.log(
+    `[seed] Created ${seedResults.mentions.length} media mentions for ${seedResults.client.name} -> ${seedResults.publication.name}`,
+  );
+} else if (seedResults?.reason) {
+  console.log(`[seed] Skipped: ${seedResults.reason}`);
+}
+
+const PORT = config.port;
 
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
