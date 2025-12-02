@@ -29,13 +29,13 @@ npm install
 Run a single tracking job:
 
 ```bash
-npm run start:once
+npm run scheduler:once
 ```
 
 Start the scheduler (runs immediately and then at the configured daily time using a cron expression in UTC):
 
 ```bash
-npm start
+npm run scheduler
 ```
 
 Provider errors are logged on the job record but do not stop the pipeline from querying subsequent sources.
@@ -57,7 +57,14 @@ The UI renders data that comes from the backend APIs. Use the following concrete
      ```bash
      npm start
      ```
-3. **Seed a bit of data so the UI has something to render** (optional but recommended)
+3. **Zero-config developer mode (auto database + provider demo data)**
+   - Prefer `npm run dev` during local development. It will:
+     - Create `data/mediamentions.db` (or whatever `DATABASE_URL` points to)
+     - Sync the built-in demo clients
+     - Run the demo provider pipeline once, log the created mention count (e.g. `168`), and persist the results to SQLite so the UI can read them immediately
+     - Start the API server with CORS enabled
+   - Set `SKIP_DEV_SEED=1` if you want to start clean without sample data.
+4. **Seed a bit of data manually (if you skipped dev mode)**
    - In a separate shell, insert a client, publication, and media mention using the running API:
      ```bash
      curl -X POST http://localhost:3000/clients \
@@ -73,24 +80,8 @@ The UI renders data that comes from the backend APIs. Use the following concrete
        -d '{"title":"Launch coverage","subjectMatter":"Product","mentionDate":"2024-05-01","link":"https://techdaily.example/launch","clientId":1,"publicationId":1}'
      ```
 4. **Proxy frontend API calls to the backend during development**
-   - Add a dev proxy to `client/vite.config.ts` so `/api` calls from the browser go to the Node server when running `npm run dev`:
-     ```ts
-     import { defineConfig } from 'vite';
-     import react from '@vitejs/plugin-react';
-
-     export default defineConfig({
-       plugins: [react()],
-       server: {
-         proxy: {
-           '/api': 'http://localhost:3000',
-           '/clients': 'http://localhost:3000',
-           '/publications': 'http://localhost:3000',
-           '/media-mentions': 'http://localhost:3000',
-         },
-       },
-     });
-     ```
-   - Restart the Vite dev server after saving the proxy settings: `cd client && npm run dev`
+   - Nothing to configure: `client/vite.config.ts` already proxies API calls to `http://localhost:3000` (override with `VITE_BACKEND_URL` if needed).
+   - Run the Vite dev server with `cd client && npm run dev`.
 5. **Open the app**
    - Visit the Vite dev URL (default `http://localhost:5173`). The “Clients” page can now add mentions locally and the “Export” button will hit the backend because `/api/clients/:id/mentions/export` is forwarded through the proxy.
 
@@ -125,13 +116,17 @@ Set these environment variables (or rely on defaults):
 ### Running locally
 
 1. Ensure Node.js 22+ and the `sqlite3` CLI are available in your shell (both are present in the container).
-2. Start the server:
+2. Start the server (creates the database if missing):
 
    ```bash
    npm start
    ```
 
-   The server initializes the schema on first boot.
+3. For a no-hassle local environment with sample data, run instead:
+
+   ```bash
+   npm run dev
+   ```
 
 ### API overview
 
