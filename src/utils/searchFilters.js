@@ -1,4 +1,4 @@
-const { extractDomain } = require('./mentions');
+const { extractDomain } = require("./mentions");
 
 function containsAny(text, words = []) {
   if (!text) return false;
@@ -8,12 +8,17 @@ function containsAny(text, words = []) {
 
 function filterResultsForClient(results, profile, client) {
   const nameCheck = client.name.toLowerCase();
-  const contextWords = (profile.contextWords || []).map((word) => word.toLowerCase());
-  const excludeDomains = (profile.ownDomains || []).map((domain) => domain.toLowerCase());
+  const contextWords = (profile.contextWords || []).map((word) =>
+    word.toLowerCase()
+  );
+  const excludeDomains = (profile.ownDomains || []).map((domain) =>
+    domain.toLowerCase()
+  );
+  const hasProfile = contextWords.length > 0 || excludeDomains.length > 0;
 
   return results.filter((result) => {
-    const title = result.title || '';
-    const snippet = result.snippet || '';
+    const title = result.title || "";
+    const snippet = result.snippet || "";
     const combinedText = `${title} ${snippet}`.toLowerCase();
 
     const domain = extractDomain(result.url);
@@ -21,11 +26,18 @@ function filterResultsForClient(results, profile, client) {
       return false;
     }
 
-    if (!combinedText.includes(nameCheck)) {
+    // For clients with search profiles, trust the context words and Google's exact term matching
+    // For clients without profiles, require exact name match as a safety check
+    if (!hasProfile && !combinedText.includes(nameCheck)) {
       return false;
     }
 
-    if (contextWords.length && !containsAny(combinedText, contextWords)) {
+    // Apply context word filtering for clients with search profiles
+    if (
+      hasProfile &&
+      contextWords.length &&
+      !containsAny(combinedText, contextWords)
+    ) {
       return false;
     }
 
@@ -34,5 +46,5 @@ function filterResultsForClient(results, profile, client) {
 }
 
 module.exports = {
-  filterResultsForClient
+  filterResultsForClient,
 };
