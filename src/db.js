@@ -127,6 +127,30 @@ function initializeDatabase() {
   ensureColumn('mediaMentions', 'source', 'TEXT');
   ensureColumn('mediaMentions', 'sentiment', 'TEXT');
   ensureColumn('mediaMentions', 'status', 'TEXT');
+
+  // Create indices for performance and unique constraints
+  const indices = [
+    'CREATE INDEX IF NOT EXISTS idx_mentions_client ON mediaMentions(clientId);',
+    'CREATE INDEX IF NOT EXISTS idx_mentions_date ON mediaMentions(mentionDate);',
+    'CREATE INDEX IF NOT EXISTS idx_mentions_publication ON mediaMentions(publicationId);',
+    'CREATE INDEX IF NOT EXISTS idx_mentions_link ON mediaMentions(link);',
+    'CREATE INDEX IF NOT EXISTS idx_mentions_press_release ON mediaMentions(pressReleaseId);',
+    'CREATE INDEX IF NOT EXISTS idx_press_client ON pressReleases(clientId);',
+    'CREATE INDEX IF NOT EXISTS idx_publications_website ON publications(website);',
+    'CREATE INDEX IF NOT EXISTS idx_feedback_client ON feedbackSummaries(clientId);',
+    'CREATE INDEX IF NOT EXISTS idx_search_jobs_client ON searchJobs(clientId);',
+    'CREATE INDEX IF NOT EXISTS idx_search_jobs_status ON searchJobs(status);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_name_unique ON clients(LOWER(name));',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_mentions_url_client_unique ON mediaMentions(link, clientId);'
+  ];
+
+  indices.forEach(sql => {
+    try {
+      runExecute(sql);
+    } catch (err) {
+      // Index might already exist, ignore
+    }
+  });
 }
 
 module.exports = {

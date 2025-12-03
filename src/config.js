@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 function cleanEnv(value) {
   if (typeof value !== 'string') return value;
@@ -12,30 +13,87 @@ function cleanEnv(value) {
   return trimmed;
 }
 
-const DEFAULT_SCHEDULE_TIME = process.env.SCHEDULE_TIME || '03:00';
-const googleSearchEngineId = cleanEnv(process.env.GOOGLE_CSE_ID);
-const googleReferer = cleanEnv(process.env.GOOGLE_REFERER);
+function requireEnv(name) {
+  const value = cleanEnv(process.env[name]);
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
+// Server configuration
+const config = {
+  server: {
+    port: Number(process.env.PORT) || 3000,
+    host: process.env.HOST || 'localhost',
+    corsOrigin: process.env.CORS_ORIGIN || '*'
+  },
+  database: {
+    path: process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db')
+  },
+  auth: {
+    apiKey: process.env.API_KEY || null
+  },
+  providers: {
+    google: {
+      apiKey: requireEnv('GOOGLE_API_KEY'),
+      searchEngineId: requireEnv('GOOGLE_CSE_ID'),
+      referer: cleanEnv(process.env.GOOGLE_REFERER) || null
+    }
+  },
+  scheduler: {
+    time: process.env.SCHEDULE_TIME || '03:00',
+    timezone: process.env.TZ || 'UTC'
+  },
+  search: {
+    providers: ['google'],
+    maxResultsPerProvider: Number.isFinite(Number(process.env.MAX_RESULTS_PER_PROVIDER))
+      ? Number(process.env.MAX_RESULTS_PER_PROVIDER)
+      : Infinity,
+    mentionStatus: 'new'
+  },
+  logging: {
+    level: process.env.LOG_LEVEL || 'info'
+  }
+};
+
+// Legacy exports for backward compatibility
 const providerApiKeys = {
-  google: cleanEnv(process.env.GOOGLE_API_KEY)
+  google: config.providers.google.apiKey
 };
 
 const providerConfig = {
-  googleSearchEngineId,
-  googleReferer
+  googleSearchEngineId: config.providers.google.searchEngineId,
+  googleReferer: config.providers.google.referer
 };
 
 const searchConfig = {
-  scheduleTime: DEFAULT_SCHEDULE_TIME,
-  providers: ['google'],
-  maxResultsPerProvider: Number.isFinite(Number(process.env.MAX_RESULTS_PER_PROVIDER))
-    ? Number(process.env.MAX_RESULTS_PER_PROVIDER)
-    : Infinity,
-  mentionStatus: 'new'
+  scheduleTime: config.scheduler.time,
+  providers: config.search.providers,
+  maxResultsPerProvider: config.search.maxResultsPerProvider,
+  mentionStatus: config.search.mentionStatus
 };
 
+function validateConfig() {
+  const errors = [];
+
+  if (!config.providers.google.apiKey) {
+    errors.push('GOOGLE_API_KEY is required');
+  }
+
+  if (!config.providers.google.searchEngineId) {
+    errors.push('GOOGLE_CSE_ID is required');
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
+  }
+}
+
 module.exports = {
+  config,
   providerApiKeys,
   providerConfig,
-  searchConfig
+  searchConfig,
+  validateConfig
 };

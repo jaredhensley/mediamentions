@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Card, CardContent, IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { fetchPublications } from '../api';
+import { fetchPublications, createPublication, updatePublication, deletePublication } from '../api';
 import { Publication } from '../data';
 import PublicationFormModal, { PublicationFormData } from '../components/PublicationFormModal';
 
@@ -20,17 +20,33 @@ export default function PublicationsPage() {
 
   const editingPublication = publications.find((p) => p.id === editingId);
 
-  const handleSave = (data: PublicationFormData) => {
-    if (editingId) {
-      setPublications((prev) => prev.map((pub) => (pub.id === editingId ? { ...pub, ...data } : pub)));
-    } else {
-      const nextId = publications.length ? Math.max(...publications.map((p) => p.id)) + 1 : 1;
-      setPublications((prev) => [...prev, { ...data, id: nextId }]);
+  const handleSave = async (data: PublicationFormData) => {
+    try {
+      if (editingId) {
+        const updated = await updatePublication(editingId, data);
+        setPublications((prev) => prev.map((pub) => (pub.id === editingId ? updated : pub)));
+      } else {
+        const created = await createPublication(data);
+        setPublications((prev) => [...prev, created]);
+      }
+      setModalOpen(false);
+      setEditingId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save publication');
     }
   };
 
-  const handleDelete = (id: number) => {
-    setPublications((prev) => prev.filter((pub) => pub.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this publication?')) {
+      return;
+    }
+
+    try {
+      await deletePublication(id);
+      setPublications((prev) => prev.filter((pub) => pub.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete publication');
+    }
   };
 
   return (
