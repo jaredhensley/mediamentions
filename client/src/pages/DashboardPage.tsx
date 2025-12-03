@@ -1,14 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, Grid, Link, List, ListItem, ListItemText, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Link,
+  List,
+  ListItem,
+  ListItemText,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { fetchClients, fetchMentions } from '../api';
 import { Client, Mention } from '../data';
 import { formatDisplayDate, formatRelativeTime } from '../utils/format';
 
+type DateFilter = '1d' | '3d' | '1w' | '30d' | 'all' | 'custom';
+
 export default function DashboardPage() {
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,9 +41,50 @@ export default function DashboardPage() {
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  const getDateThreshold = (filter: DateFilter): Date | null => {
+    const now = new Date();
+    switch (filter) {
+      case '1d':
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      case '3d':
+        return new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      case '1w':
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case '30d':
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'all':
+        return null;
+      case 'custom':
+        return null; // Custom handled separately
+      default:
+        return null;
+    }
+  };
+
   const sortedMentions = useMemo(() => {
     return [...mentions].sort((a, b) => new Date(b.mentionDate).getTime() - new Date(a.mentionDate).getTime());
   }, [mentions]);
+
+  const filteredMentions = useMemo(() => {
+    if (dateFilter === 'custom') {
+      return sortedMentions.filter((mention) => {
+        const mentionDate = mention.mentionDate.slice(0, 10);
+        const afterStart = !customStartDate || mentionDate >= customStartDate;
+        const beforeEnd = !customEndDate || mentionDate <= customEndDate;
+        return afterStart && beforeEnd;
+      });
+    }
+
+    const threshold = getDateThreshold(dateFilter);
+    if (!threshold) return sortedMentions;
+
+    return sortedMentions.filter((mention) => {
+      const mentionDate = new Date(mention.mentionDate);
+      return mentionDate >= threshold;
+    });
+  }, [sortedMentions, dateFilter, customStartDate, customEndDate]);
+
   const todaysMentions = useMemo(
     () => sortedMentions.filter((mention) => mention.mentionDate.slice(0, 10) === today),
     [sortedMentions, today],
@@ -56,15 +117,82 @@ export default function DashboardPage() {
 
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent mentions
-          </Typography>
-          {error && <Typography color="error">{error}</Typography>}
-          {sortedMentions.length === 0 ? (
-            <Typography color="text.secondary">No mentions recorded yet.</Typography>
-          ) : (
-            <List>
-              {sortedMentions.map((mention) => (
+          <Stack spacing={2}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+              <Typography variant="h6">Recent mentions</Typography>
+              <Chip label={`${filteredMentions.length} results`} color="primary" variant="outlined" />
+            </Box>
+
+            <Box display="flex" flexDirection="column" gap={2}>
+              <ButtonGroup size="small" variant="outlined">
+                <Button
+                  variant={dateFilter === '1d' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('1d')}
+                >
+                  Last 24h
+                </Button>
+                <Button
+                  variant={dateFilter === '3d' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('3d')}
+                >
+                  Last 3 days
+                </Button>
+                <Button
+                  variant={dateFilter === '1w' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('1w')}
+                >
+                  Last week
+                </Button>
+                <Button
+                  variant={dateFilter === '30d' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('30d')}
+                >
+                  Last 30 days
+                </Button>
+                <Button
+                  variant={dateFilter === 'all' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('all')}
+                >
+                  All time
+                </Button>
+                <Button
+                  variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
+                  onClick={() => setDateFilter('custom')}
+                >
+                  Custom
+                </Button>
+              </ButtonGroup>
+
+              {dateFilter === 'custom' && (
+                <Box display="flex" gap={2} flexWrap="wrap">
+                  <TextField
+                    label="Start date"
+                    type="date"
+                    size="small"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    label="End date"
+                    type="date"
+                    size="small"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              )}
+            </Box>
+
+            {error && <Typography color="error">{error}</Typography>}
+            {filteredMentions.length === 0 ? (
+              <Typography color="text.secondary">
+                {mentions.length === 0 ? 'No mentions recorded yet.' : 'No mentions in selected date range.'}
+              </Typography>
+            ) : (
+              <List>
+                {filteredMentions.map((mention) => (
                 <ListItem key={mention.id} divider>
                   <ListItemText
                     primary={
@@ -100,6 +228,7 @@ export default function DashboardPage() {
               ))}
             </List>
           )}
+          </Stack>
         </CardContent>
       </Card>
     </Stack>
