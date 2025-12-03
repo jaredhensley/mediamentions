@@ -13,7 +13,6 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/press-releases" element={<PressReleasesPage />} />
-        <Route path="/mentions" element={<Navigate to="/" replace />} />
         <Route path="/publications" element={<PublicationsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>

@@ -9,7 +9,8 @@
     "dev": "node src/dev.js",
     "scheduler": "node src/index.js",
     "scheduler:once": "node src/index.js --once",
-    "test": "echo \"No automated tests configured\""
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -17,5 +18,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
 }
