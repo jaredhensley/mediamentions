@@ -156,8 +156,39 @@ function ensurePublication(domain, cache) {
 
 function analyzeSentiment(title, snippet) {
   const text = `${title} ${snippet}`.toLowerCase();
-  const positives = ['good', 'great', 'positive', 'growth', 'success', 'win', 'expands', 'improves'];
-  const negatives = ['bad', 'decline', 'negative', 'loss', 'drop', 'lawsuit', 'fails', 'cuts'];
+
+  // Expanded sentiment keyword lists with domain-specific terms
+  const positives = [
+    // General positive
+    'good', 'great', 'positive', 'success', 'win', 'wins', 'winning', 'excellent', 'outstanding',
+    // Growth & expansion
+    'growth', 'expands', 'expansion', 'growing', 'increases', 'rise', 'soars', 'surge', 'boosts',
+    // Improvement
+    'improves', 'improvement', 'better', 'enhanced', 'advancement', 'innovation', 'breakthrough',
+    // Achievement
+    'achieves', 'achievement', 'award', 'awarded', 'recognition', 'honored', 'celebrates',
+    // Business positive
+    'profit', 'revenue', 'profitable', 'thriving', 'flourishing', 'partnership', 'collaboration',
+    // Agriculture/food specific
+    'harvest', 'abundant', 'quality', 'fresh', 'organic', 'sustainable', 'certified'
+  ];
+
+  const negatives = [
+    // General negative
+    'bad', 'negative', 'poor', 'terrible', 'worst', 'failure', 'failed',
+    // Decline
+    'decline', 'declining', 'decrease', 'drop', 'drops', 'falling', 'plunges', 'slump',
+    // Loss & damage
+    'loss', 'losses', 'loses', 'losing', 'damage', 'damaged', 'destroyed', 'devastated',
+    // Problems
+    'problem', 'issue', 'concern', 'warning', 'alert', 'risk', 'threat', 'crisis',
+    // Business negative
+    'cuts', 'layoffs', 'bankruptcy', 'closes', 'shutdown', 'struggles',
+    // Legal
+    'lawsuit', 'sued', 'violation', 'recall', 'investigation', 'fraud',
+    // Agriculture/food specific
+    'contamination', 'outbreak', 'disease', 'pest', 'drought', 'shortage', 'spoiled'
+  ];
 
   const positiveHits = positives.some((word) => text.includes(word));
   const negativeHits = negatives.some((word) => text.includes(word));
