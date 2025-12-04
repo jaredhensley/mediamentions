@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   Grid,
+  IconButton,
   Link,
   List,
   ListItem,
@@ -15,8 +16,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import { fetchClients, fetchMentions } from '../api';
+import { fetchClients, fetchMentions, deleteMention } from '../api';
 import { Client, Mention } from '../data';
 import { formatDisplayDate, formatRelativeTime } from '../utils/format';
 
@@ -93,6 +95,19 @@ export default function DashboardPage() {
     () => Object.fromEntries(clients.map((client) => [client.id, client.name])),
     [clients],
   );
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this mention?')) {
+      return;
+    }
+
+    try {
+      await deleteMention(id);
+      setMentions((prev) => prev.filter((mention) => mention.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete mention');
+    }
+  };
 
   const quickStats = [
     { label: 'Total mentions', value: mentions.length },
@@ -193,7 +208,15 @@ export default function DashboardPage() {
             ) : (
               <List>
                 {filteredMentions.map((mention) => (
-                <ListItem key={mention.id} divider>
+                <ListItem
+                  key={mention.id}
+                  divider
+                  secondaryAction={
+                    <IconButton edge="end" aria-label="delete" onClick={() => handleDelete(mention.id)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  }
+                >
                   <ListItemText
                     primary={
                       mention.link ? (
@@ -206,21 +229,26 @@ export default function DashboardPage() {
                     }
                     secondary={
                       <>
-                        <Typography component="span" color="text.primary" sx={{ mr: 1 }}>
+                        <Typography component="span" display="block" color="text.primary">
                           {formatDisplayDate(mention.mentionDate)}
                           {formatRelativeTime(mention.mentionDate)
                             ? ` • ${formatRelativeTime(mention.mentionDate)}`
                             : ''}
+                          {' • '}
+                          <Link
+                            component="button"
+                            type="button"
+                            underline="hover"
+                            onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
+                          >
+                            {clientNameById[mention.clientId] || `Client #${mention.clientId}`}
+                          </Link>
                         </Typography>
-                        <Link
-                          component="button"
-                          type="button"
-                          underline="hover"
-                          onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
-                        >
-                          {clientNameById[mention.clientId] || `Client #${mention.clientId}`}
-                        </Link>
-                        {mention.subjectMatter ? ` • ${mention.subjectMatter}` : ''}
+                        {mention.subjectMatter && (
+                          <Typography component="span" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {mention.subjectMatter}
+                          </Typography>
+                        )}
                       </>
                     }
                   />

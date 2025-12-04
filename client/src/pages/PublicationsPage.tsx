@@ -73,7 +73,6 @@ export default function PublicationsPage() {
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Website</TableCell>
-                <TableCell>Client ID</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -82,7 +81,6 @@ export default function PublicationsPage() {
                 <TableRow key={pub.id}>
                   <TableCell>{pub.name}</TableCell>
                   <TableCell>{pub.website || 'N/A'}</TableCell>
-                  <TableCell>{pub.clientId ?? 'N/A'}</TableCell>
                   <TableCell align="right">
                     <IconButton
                       onClick={() => {

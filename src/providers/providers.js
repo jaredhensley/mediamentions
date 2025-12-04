@@ -51,7 +51,7 @@ async function googleSearch(searchRequest, { maxResults }) {
       q: query,
       num: String(num),
       start: String(start),
-      dateRestrict: 'd90'
+      dateRestrict: 'd180'
     });
 
     if (exactTerms) {

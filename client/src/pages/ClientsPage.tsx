@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Card,
@@ -7,6 +8,7 @@ import {
   Chip,
   Divider,
   Grid,
+  IconButton,
   MenuItem,
   Select,
   Stack,
@@ -20,8 +22,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useSearchParams } from 'react-router-dom';
-import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications } from '../api';
+import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention } from '../api';
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
@@ -94,6 +97,14 @@ export default function ClientsPage() {
     [mentions, selectedClientId, sentimentFilter],
   );
 
+  const mentionCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    mentions.forEach((mention) => {
+      counts[mention.clientId] = (counts[mention.clientId] || 0) + 1;
+    });
+    return counts;
+  }, [mentions]);
+
   const handleMentionSave = (data: MentionFormData) => {
     setMentions((prev) => [...prev, { ...data, id: prev.length + 1 }]);
   };
@@ -118,6 +129,19 @@ export default function ClientsPage() {
     setClientList((prev) => [...prev, newClient]);
     setClientForm({ name: '', notes: '' });
     setSelectedClientId(newClient.id);
+  };
+
+  const handleDeleteMention = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this mention?')) {
+      return;
+    }
+
+    try {
+      await deleteMention(id);
+      setMentions((prev) => prev.filter((mention) => mention.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete mention');
+    }
   };
 
   const handleExport = async () => {
@@ -182,7 +206,12 @@ export default function ClientsPage() {
                         setSearchParams({ clientId: String(client.id) }, { replace: true });
                       }}
                     >
-                      <TableCell>{client.name}</TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <span>{client.name}</span>
+                          <Badge badgeContent={mentionCounts[client.id] || 0} color="primary" sx={{ ml: 1 }} />
+                        </Box>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -241,6 +270,7 @@ export default function ClientsPage() {
                         <TableCell>Source</TableCell>
                         <TableCell>Sentiment</TableCell>
                         <TableCell>Date</TableCell>
+                        <TableCell align="right">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -260,6 +290,11 @@ export default function ClientsPage() {
                             <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
                           </TableCell>
                           <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
+                          <TableCell align="right">
+                            <IconButton size="small" onClick={() => handleDeleteMention(mention.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -274,9 +309,8 @@ export default function ClientsPage() {
                     <Card key={pr.id} variant="outlined">
                       <CardContent>
                         <Typography variant="subtitle1">{pr.title}</Typography>
-                        <Typography color="text.secondary">{pr.date || pr.releaseDate}</Typography>
-                        <Chip size="small" label={pr.status || 'draft'} sx={{ mt: 1 }} />
-                        <Typography sx={{ mt: 1 }}>{pr.body || pr.content}</Typography>
+                        <Typography color="text.secondary">{pr.releaseDate}</Typography>
+                        <Typography sx={{ mt: 1 }}>{pr.content}</Typography>
                       </CardContent>
                     </Card>
                   ))}
