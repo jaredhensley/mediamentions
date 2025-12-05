@@ -7,6 +7,23 @@ const { getStatus: getVerificationStatus } = require('./services/verificationSta
 const { initWebSocket } = require('./services/websocket');
 const { validateConfig, config } = require('./config');
 const { requireApiKey } = require('./middleware/auth');
+const {
+  validate,
+  createClientSchema,
+  updateClientSchema,
+  createPublicationSchema,
+  updatePublicationSchema,
+  createPressReleaseSchema,
+  updatePressReleaseSchema,
+  createMediaMentionSchema,
+  updateMediaMentionSchema,
+  listMediaMentionsSchema,
+  createFeedbackSummarySchema,
+  updateFeedbackSummarySchema,
+  createSearchJobSchema,
+  updateSearchJobSchema,
+  idParamSchema
+} = require('./schemas');
 
 // Validate configuration before starting
 validateConfig();
@@ -197,14 +214,15 @@ async function listClients(_req, res) {
 async function createClient(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.name || !body.contactEmail) {
-      sendJson(res, 400, { error: 'name and contactEmail are required' });
+    const validation = validate(createClientSchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
     const now = new Date().toISOString();
     const [client] = runQuery(
       'INSERT INTO clients (name, contactEmail, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
-      [body.name, body.contactEmail, now],
+      [validation.data.name, validation.data.contactEmail, now],
     );
     sendJson(res, 201, client);
   } catch (error) {
@@ -213,12 +231,12 @@ async function createClient(req, res) {
 }
 
 async function getClient(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid client id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [client] = runQuery('SELECT * FROM clients WHERE id=@p0;', [id]);
+  const [client] = runQuery('SELECT * FROM clients WHERE id=@p0;', [validation.data.id]);
   if (!client) {
     sendJson(res, 404, { error: 'Client not found' });
     return;
@@ -227,20 +245,21 @@ async function getClient(_req, res, params) {
 }
 
 async function updateClient(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid client id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, ['name', 'contactEmail']);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
+  const validation = validate(updateClientSchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const { keys, values } = buildUpdateFields(validation.data, ['name', 'contactEmail']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [client] = runQuery(
     `UPDATE clients SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -254,12 +273,12 @@ async function updateClient(req, res, params) {
 }
 
 async function deleteClient(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid client id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [client] = runQuery('DELETE FROM clients WHERE id=@p0 RETURNING *;', [id]);
+  const [client] = runQuery('DELETE FROM clients WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!client) {
     sendJson(res, 404, { error: 'Client not found' });
     return;
@@ -275,14 +294,15 @@ async function listPublications(_req, res) {
 async function createPublication(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.name) {
-      sendJson(res, 400, { error: 'name is required' });
+    const validation = validate(createPublicationSchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
     const now = new Date().toISOString();
     const [publication] = runQuery(
       'INSERT INTO publications (name, website, clientId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p3) RETURNING *;',
-      [body.name, body.website || null, body.clientId || null, now],
+      [validation.data.name, validation.data.website || null, validation.data.clientId || null, now],
     );
     sendJson(res, 201, publication);
   } catch (error) {
@@ -291,12 +311,12 @@ async function createPublication(req, res) {
 }
 
 async function getPublication(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid publication id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [publication] = runQuery('SELECT * FROM publications WHERE id=@p0;', [id]);
+  const [publication] = runQuery('SELECT * FROM publications WHERE id=@p0;', [validation.data.id]);
   if (!publication) {
     sendJson(res, 404, { error: 'Publication not found' });
     return;
@@ -305,20 +325,21 @@ async function getPublication(_req, res, params) {
 }
 
 async function updatePublication(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid publication id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, ['name', 'website', 'clientId']);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
+  const validation = validate(updatePublicationSchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const { keys, values } = buildUpdateFields(validation.data, ['name', 'website', 'clientId']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [publication] = runQuery(
     `UPDATE publications SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -332,12 +353,12 @@ async function updatePublication(req, res, params) {
 }
 
 async function deletePublication(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid publication id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [publication] = runQuery('DELETE FROM publications WHERE id=@p0 RETURNING *;', [id]);
+  const [publication] = runQuery('DELETE FROM publications WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!publication) {
     sendJson(res, 404, { error: 'Publication not found' });
     return;
@@ -353,14 +374,15 @@ async function listPressReleases(_req, res) {
 async function createPressRelease(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.title || !body.releaseDate || !body.clientId) {
-      sendJson(res, 400, { error: 'title, releaseDate, and clientId are required' });
+    const validation = validate(createPressReleaseSchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
     const now = new Date().toISOString();
     const [pressRelease] = runQuery(
       'INSERT INTO pressReleases (title, content, releaseDate, clientId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p4) RETURNING *;',
-      [body.title, body.content || '', body.releaseDate, body.clientId, now],
+      [validation.data.title, validation.data.content || '', validation.data.releaseDate, validation.data.clientId, now],
     );
     sendJson(res, 201, pressRelease);
   } catch (error) {
@@ -369,12 +391,12 @@ async function createPressRelease(req, res) {
 }
 
 async function getPressRelease(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid press release id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [pressRelease] = runQuery('SELECT * FROM pressReleases WHERE id=@p0;', [id]);
+  const [pressRelease] = runQuery('SELECT * FROM pressReleases WHERE id=@p0;', [validation.data.id]);
   if (!pressRelease) {
     sendJson(res, 404, { error: 'Press release not found' });
     return;
@@ -383,20 +405,21 @@ async function getPressRelease(_req, res, params) {
 }
 
 async function updatePressRelease(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid press release id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, ['title', 'content', 'releaseDate', 'clientId']);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
+  const validation = validate(updatePressReleaseSchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const { keys, values } = buildUpdateFields(validation.data, ['title', 'content', 'releaseDate', 'clientId']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [pressRelease] = runQuery(
     `UPDATE pressReleases SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -410,12 +433,12 @@ async function updatePressRelease(req, res, params) {
 }
 
 async function deletePressRelease(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid press release id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [pressRelease] = runQuery('DELETE FROM pressReleases WHERE id=@p0 RETURNING *;', [id]);
+  const [pressRelease] = runQuery('DELETE FROM pressReleases WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!pressRelease) {
     sendJson(res, 404, { error: 'Press release not found' });
     return;
@@ -462,26 +485,28 @@ async function listMediaMentions(req, res) {
 async function createMediaMention(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.title || !body.mentionDate || !body.clientId || !body.publicationId) {
-      sendJson(res, 400, { error: 'title, mentionDate, clientId, and publicationId are required' });
+    const validation = validate(createMediaMentionSchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
+    const d = validation.data;
     const now = new Date().toISOString();
     const [mention] = runQuery(
       `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;`,
       [
-        body.title,
-        body.subjectMatter || '',
-        body.mentionDate,
-        body.reMentionDate || null,
-        body.link || '',
-        body.source || null,
-        body.sentiment || null,
-        body.status || 'new',
-        body.clientId,
-        body.publicationId,
-        body.pressReleaseId || null,
+        d.title,
+        d.subjectMatter || '',
+        d.mentionDate,
+        d.reMentionDate || null,
+        d.link || '',
+        d.source || null,
+        d.sentiment || null,
+        d.status || 'new',
+        d.clientId,
+        d.publicationId,
+        d.pressReleaseId || null,
         now,
       ],
     );
@@ -492,12 +517,12 @@ async function createMediaMention(req, res) {
 }
 
 async function getMediaMention(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid media mention id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [mention] = runQuery('SELECT * FROM mediaMentions WHERE id=@p0;', [id]);
+  const [mention] = runQuery('SELECT * FROM mediaMentions WHERE id=@p0;', [validation.data.id]);
   if (!mention) {
     sendJson(res, 404, { error: 'Media mention not found' });
     return;
@@ -506,13 +531,18 @@ async function getMediaMention(_req, res, params) {
 }
 
 async function updateMediaMention(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid media mention id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, [
+  const validation = validate(updateMediaMentionSchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
+    return;
+  }
+  const { keys, values } = buildUpdateFields(validation.data, [
     'title',
     'subjectMatter',
     'mentionDate',
@@ -525,13 +555,9 @@ async function updateMediaMention(req, res, params) {
     'publicationId',
     'pressReleaseId',
   ]);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
-    return;
-  }
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [mention] = runQuery(
     `UPDATE mediaMentions SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -545,12 +571,12 @@ async function updateMediaMention(req, res, params) {
 }
 
 async function deleteMediaMention(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid media mention id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [mention] = runQuery('DELETE FROM mediaMentions WHERE id=@p0 RETURNING *;', [id]);
+  const [mention] = runQuery('DELETE FROM mediaMentions WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!mention) {
     sendJson(res, 404, { error: 'Media mention not found' });
     return;
@@ -566,14 +592,16 @@ async function listFeedbackSummaries(_req, res) {
 async function createFeedbackSummary(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.clientId || !body.summary) {
-      sendJson(res, 400, { error: 'clientId and summary are required' });
+    const validation = validate(createFeedbackSummarySchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
+    const d = validation.data;
     const now = new Date().toISOString();
     const [summary] = runQuery(
       'INSERT INTO feedbackSummaries (clientId, summary, rating, period, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p4) RETURNING *;',
-      [body.clientId, body.summary, body.rating || null, body.period || null, now],
+      [d.clientId, d.summary, d.rating || null, d.period || null, now],
     );
     sendJson(res, 201, summary);
   } catch (error) {
@@ -582,12 +610,12 @@ async function createFeedbackSummary(req, res) {
 }
 
 async function getFeedbackSummary(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid feedback summary id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [summary] = runQuery('SELECT * FROM feedbackSummaries WHERE id=@p0;', [id]);
+  const [summary] = runQuery('SELECT * FROM feedbackSummaries WHERE id=@p0;', [validation.data.id]);
   if (!summary) {
     sendJson(res, 404, { error: 'Feedback summary not found' });
     return;
@@ -596,20 +624,21 @@ async function getFeedbackSummary(_req, res, params) {
 }
 
 async function updateFeedbackSummary(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid feedback summary id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, ['clientId', 'summary', 'rating', 'period']);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
+  const validation = validate(updateFeedbackSummarySchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const { keys, values } = buildUpdateFields(validation.data, ['clientId', 'summary', 'rating', 'period']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [summary] = runQuery(
     `UPDATE feedbackSummaries SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -623,12 +652,12 @@ async function updateFeedbackSummary(req, res, params) {
 }
 
 async function deleteFeedbackSummary(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid feedback summary id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [summary] = runQuery('DELETE FROM feedbackSummaries WHERE id=@p0 RETURNING *;', [id]);
+  const [summary] = runQuery('DELETE FROM feedbackSummaries WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!summary) {
     sendJson(res, 404, { error: 'Feedback summary not found' });
     return;
@@ -644,14 +673,16 @@ async function listSearchJobs(_req, res) {
 async function createSearchJob(req, res) {
   try {
     const body = await parseJsonBody(req);
-    if (!body.clientId || !body.query || !body.scheduledAt) {
-      sendJson(res, 400, { error: 'clientId, query, and scheduledAt are required' });
+    const validation = validate(createSearchJobSchema, body);
+    if (!validation.success) {
+      sendJson(res, 400, { error: validation.error });
       return;
     }
+    const d = validation.data;
     const now = new Date().toISOString();
     const [job] = runQuery(
       'INSERT INTO searchJobs (clientId, query, status, scheduledAt, completedAt, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p5) RETURNING *;',
-      [body.clientId, body.query, body.status || 'pending', body.scheduledAt, body.completedAt || null, now],
+      [d.clientId, d.query, d.status || 'pending', d.scheduledAt, d.completedAt || null, now],
     );
     sendJson(res, 201, job);
   } catch (error) {
@@ -660,12 +691,12 @@ async function createSearchJob(req, res) {
 }
 
 async function getSearchJob(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid search job id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [job] = runQuery('SELECT * FROM searchJobs WHERE id=@p0;', [id]);
+  const [job] = runQuery('SELECT * FROM searchJobs WHERE id=@p0;', [validation.data.id]);
   if (!job) {
     sendJson(res, 404, { error: 'Search job not found' });
     return;
@@ -674,20 +705,21 @@ async function getSearchJob(_req, res, params) {
 }
 
 async function updateSearchJob(req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid search job id' });
+  const idValidation = validate(idParamSchema, params);
+  if (!idValidation.success) {
+    sendJson(res, 400, { error: idValidation.error });
     return;
   }
   const body = await parseJsonBody(req);
-  const { keys, values } = buildUpdateFields(body, ['clientId', 'query', 'status', 'scheduledAt', 'completedAt']);
-  if (!keys.length) {
-    sendJson(res, 400, { error: 'No updatable fields provided' });
+  const validation = validate(updateSearchJobSchema, body);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const { keys, values } = buildUpdateFields(validation.data, ['clientId', 'query', 'status', 'scheduledAt', 'completedAt']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
-  values.push(id);
+  values.push(idValidation.data.id);
   const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
   const [job] = runQuery(
     `UPDATE searchJobs SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
@@ -701,12 +733,12 @@ async function updateSearchJob(req, res, params) {
 }
 
 async function deleteSearchJob(_req, res, params) {
-  const id = Number(params.id);
-  if (!id) {
-    sendJson(res, 400, { error: 'Invalid search job id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
-  const [job] = runQuery('DELETE FROM searchJobs WHERE id=@p0 RETURNING *;', [id]);
+  const [job] = runQuery('DELETE FROM searchJobs WHERE id=@p0 RETURNING *;', [validation.data.id]);
   if (!job) {
     sendJson(res, 404, { error: 'Search job not found' });
     return;
@@ -715,11 +747,12 @@ async function deleteSearchJob(_req, res, params) {
 }
 
 async function exportMentions(_req, res, params) {
-  const clientId = Number(params.id);
-  if (!clientId) {
-    sendJson(res, 400, { error: 'Invalid client id' });
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
     return;
   }
+  const clientId = validation.data.id;
   const [client] = runQuery('SELECT name FROM clients WHERE id=@p0;', [clientId]);
   const url = new URL(_req.url, 'http://localhost');
   const filters = ['mm.clientId=@p0'];
