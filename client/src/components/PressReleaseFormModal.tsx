@@ -16,11 +16,8 @@ export default function PressReleaseFormModal({ open, onClose, onSave, initial, 
   const [formState, setFormState] = useState<PressReleaseFormData>(() => ({
     clientId: initial?.clientId || clients[0]?.id || 0,
     title: initial?.title || '',
-    date: initial?.date || initial?.releaseDate || new Date().toISOString().slice(0, 10),
-    releaseDate: initial?.releaseDate || initial?.date || new Date().toISOString().slice(0, 10),
-    status: initial?.status || 'draft',
-    body: initial?.body || initial?.content || '',
-    content: initial?.content,
+    releaseDate: initial?.releaseDate || new Date().toISOString().slice(0, 10),
+    content: initial?.content || '',
   }));
 
   useEffect(() => {
@@ -60,26 +57,18 @@ export default function PressReleaseFormModal({ open, onClose, onSave, initial, 
           <TextField label="Title" fullWidth value={formState.title} onChange={(e) => handleChange('title', e.target.value)} />
           <TextField
             type="date"
-            label="Date"
+            label="Release Date"
             InputLabelProps={{ shrink: true }}
-            value={formState.date}
-            onChange={(e) => handleChange('date', e.target.value)}
+            value={formState.releaseDate}
+            onChange={(e) => handleChange('releaseDate', e.target.value)}
             fullWidth
           />
-          <FormControl fullWidth>
-            <InputLabel id="status-label">Status</InputLabel>
-            <Select labelId="status-label" label="Status" value={formState.status} onChange={(e) => handleChange('status', e.target.value)}>
-              <MenuItem value="draft">Draft</MenuItem>
-              <MenuItem value="scheduled">Scheduled</MenuItem>
-              <MenuItem value="sent">Sent</MenuItem>
-            </Select>
-          </FormControl>
           <TextField
-            label="Body"
+            label="Content"
             multiline
             minRows={3}
-            value={formState.body}
-            onChange={(e) => handleChange('body', e.target.value)}
+            value={formState.content || ''}
+            onChange={(e) => handleChange('content', e.target.value)}
             fullWidth
           />
         </Stack>

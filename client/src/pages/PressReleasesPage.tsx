@@ -57,9 +57,8 @@ export default function PressReleasesPage() {
                   <ListItem key={pr.id} divider button onClick={() => setSelectedId(pr.id)} selected={pr.id === selectedId}>
                     <ListItemText
                       primary={pr.title}
-                      secondary={`${pr.date || pr.releaseDate} • ${clientsList.find((c) => c.id === pr.clientId)?.name || 'N/A'}`}
+                      secondary={`${pr.releaseDate} • ${clientsList.find((c) => c.id === pr.clientId)?.name || 'N/A'}`}
                     />
-                    <Chip label={pr.status || 'draft'} size="small" />
                   </ListItem>
                 ))}
               </List>
@@ -73,10 +72,9 @@ export default function PressReleasesPage() {
                 <Stack spacing={2}>
                   <Box>
                     <Typography variant="h6">{selected.title}</Typography>
-                    <Typography color="text.secondary">{selected.date || selected.releaseDate}</Typography>
-                    <Chip label={selected.status || 'draft'} size="small" sx={{ mt: 1 }} />
+                    <Typography color="text.secondary">{selected.releaseDate}</Typography>
                   </Box>
-                  <Typography>{selected.body || selected.content}</Typography>
+                  <Typography>{selected.content}</Typography>
                   <DividerHeading title="Related mentions" />
                   {relatedMentions.length === 0 ? (
                     <Typography color="text.secondary">No related mentions.</Typography>

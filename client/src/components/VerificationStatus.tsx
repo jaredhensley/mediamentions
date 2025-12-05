@@ -24,11 +24,16 @@ export default function VerificationStatus() {
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
     if (message.type === 'verification_status' && message.status) {
+      const s = message.status;
       setStatus(prev => ({
-        ...prev,
-        ...message.status,
+        isRunning: s.isRunning ?? prev?.isRunning ?? false,
+        phase: s.phase ?? prev?.phase ?? 'idle',
+        total: s.total ?? prev?.total ?? 0,
+        processed: s.processed ?? prev?.processed ?? 0,
+        verified: s.verified ?? prev?.verified ?? 0,
+        failed: s.failed ?? prev?.failed ?? 0,
         startedAt: prev?.startedAt || null,
-        completedAt: message.status?.phase === 'complete' ? new Date().toISOString() : null,
+        completedAt: s.phase === 'complete' ? new Date().toISOString() : null,
       }));
     } else if (message.type === 'verification_phase') {
       setStatus(prev => {

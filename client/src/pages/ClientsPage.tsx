@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSearchParams } from 'react-router-dom';
-import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention } from '../api';
+import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention, exportClientMentions } from '../api';
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
@@ -150,19 +150,12 @@ export default function ClientsPage() {
   };
 
   const handleExport = async () => {
-    const endpoint = `/clients/${selectedClientId}/mentions/export`;
-    const response = await fetch(endpoint);
-    if (!response.ok) {
-      alert('Export failed');
-      return;
+    if (!selectedClientId) return;
+    try {
+      await exportClientMentions(selectedClientId, selectedClient?.name || 'mentions');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to export mentions');
     }
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${selectedClient?.name || 'mentions'}.xls`;
-    link.click();
-    window.URL.revokeObjectURL(url);
   };
 
   return (

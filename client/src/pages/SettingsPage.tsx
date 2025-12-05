@@ -1,14 +1,20 @@
 import { Button, Divider, FormControlLabel, Stack, Switch, Typography, useTheme } from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { useColorMode } from '../theme';
+import { exportFalsePositives } from '../api';
+import { useToast } from '../hooks/useToast';
 
 export default function SettingsPage() {
   const { toggle } = useColorMode();
   const theme = useTheme();
+  const { showError } = useToast();
 
-  const handleDownloadFalsePositives = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_URL || '';
-    window.open(`${apiBaseUrl}/admin/false-positives/export`, '_blank');
+  const handleDownloadFalsePositives = async () => {
+    try {
+      await exportFalsePositives();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to download false positives');
+    }
   };
 
   return (

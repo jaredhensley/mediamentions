@@ -3,15 +3,22 @@ import { Client, Mention, PressRelease, Publication } from './data';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options?.headers,
-  };
-
+function getHeaders(contentType = 'application/json'): HeadersInit {
+  const headers: HeadersInit = {};
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
   if (API_KEY) {
     headers['X-API-Key'] = API_KEY;
   }
+  return headers;
+}
+
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: HeadersInit = {
+    ...getHeaders(),
+    ...options?.headers,
+  };
 
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
@@ -24,6 +31,28 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   return response.json();
+}
+
+async function fetchBlob(url: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    headers: getHeaders(''),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Request failed with status ${response.status}: ${errorText}`);
+  }
+
+  return response.blob();
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
 }
 
 // Clients
@@ -124,4 +153,16 @@ export function deleteMention(id: number): Promise<void> {
   return fetchJson(`/media-mentions/${id}`, {
     method: 'DELETE',
   });
+}
+
+// Exports
+export async function exportFalsePositives(): Promise<void> {
+  const blob = await fetchBlob('/admin/false-positives/export');
+  const date = new Date().toISOString().split('T')[0];
+  downloadBlob(blob, `false-positives-${date}.csv`);
+}
+
+export async function exportClientMentions(clientId: number, clientName: string): Promise<void> {
+  const blob = await fetchBlob(`/clients/${clientId}/mentions/export`);
+  downloadBlob(blob, `${clientName || 'mentions'}.xls`);
 }
