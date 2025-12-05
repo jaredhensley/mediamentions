@@ -111,7 +111,7 @@ async function deleteClient(_req, res, params) {
 // ============================================================================
 
 async function listPublications(_req, res) {
-  const publications = runQuery('SELECT * FROM publications ORDER BY id;');
+  const publications = runQuery("SELECT * FROM publications WHERE name != 'Unknown Source' ORDER BY id;");
   sendJson(res, 200, publications);
 }
 
