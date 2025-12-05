@@ -5,6 +5,10 @@ const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 const { scheduleDailySearch } = require('./services/scheduler');
 const { getStatus: getVerificationStatus } = require('./services/verificationStatus');
 const { initWebSocket } = require('./services/websocket');
+const { validateConfig } = require('./config');
+
+// Validate configuration before starting
+validateConfig();
 
 initializeDatabase();
 seedDefaultClients();

@@ -3,10 +3,14 @@ const { runSearchJob } = require('./services/searchService');
 const { initializeDatabase } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
+const { validateConfig } = require('./config');
 
 const runOnce = process.argv.includes('--once');
 
 async function start() {
+  // Validate configuration before starting
+  validateConfig();
+
   initializeDatabase();
   seedDefaultClients();
   seedDefaultPublications();
