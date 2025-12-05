@@ -52,24 +52,48 @@ function associatePressRelease(result, pressReleases) {
 }
 
 function recordMentions(results, status) {
+  if (!results.length) return [];
+
   const created = [];
   const publicationCache = new Map();
 
-  for (const result of results) {
-    const duplicate = runQuery('SELECT id FROM mediaMentions WHERE link=@p0 AND clientId=@p1 LIMIT 1;', [
-      result.url,
-      result.clientId
-    ]);
+  // Batch duplicate check: collect all URL+clientId pairs and check in one query
+  // This fixes N+1 query pattern (was running 1 query per result)
+  const existingSet = new Set();
 
-    if (duplicate.length) {
+  // Build a set of existing link+clientId combinations
+  // Group by clientId for efficient querying
+  const clientGroups = new Map();
+  for (const result of results) {
+    if (!clientGroups.has(result.clientId)) {
+      clientGroups.set(result.clientId, []);
+    }
+    clientGroups.get(result.clientId).push(result.url);
+  }
+
+  // Query existing mentions for each client (reduces N queries to M queries where M = unique clients)
+  for (const [clientId, urls] of clientGroups) {
+    // Use IN clause for batch lookup
+    const placeholders = urls.map((_, i) => `@p${i}`).join(', ');
+    const existing = runQuery(
+      `SELECT link FROM mediaMentions WHERE clientId = @p${urls.length} AND link IN (${placeholders})`,
+      [...urls, clientId]
+    );
+    for (const row of existing) {
+      existingSet.add(`${row.link}-${clientId}`);
+    }
+  }
+
+  // Now process results, skipping duplicates
+  for (const result of results) {
+    const key = `${result.url}-${result.clientId}`;
+    if (existingSet.has(key)) {
       // Already stored for this client; skip creating a duplicate entry.
-      // eslint-disable-next-line no-continue
       continue;
     }
 
     const publicationId = ensurePublication(result.source, publicationCache);
     if (!publicationId) {
-      // eslint-disable-next-line no-continue
       continue;
     }
 
