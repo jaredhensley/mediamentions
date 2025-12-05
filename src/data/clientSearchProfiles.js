@@ -12,16 +12,6 @@ const PRODUCE_PUBLICATIONS = [
   'produceretailer.com'
 ];
 
-// Priority publications for cattle/beef industry
-const CATTLE_PUBLICATIONS = [
-  'beefmagazine.com',
-  'drovers.com',
-  'cattlenetwork.com',
-  'agweb.com',
-  'progressivecattle.com',
-  'americancattlemen.com'
-];
-
 // Priority publications for North Dakota news/events
 const ND_PUBLICATIONS = [
   'grandforksherald.com',
