@@ -1,9 +1,22 @@
+/**
+ * @fileoverview SQLite database access layer using CLI
+ * Uses sqlite3 CLI for database operations with parameterized queries
+ */
+
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+/** @type {string} Path to the SQLite database file */
 const databasePath = process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
 
+/**
+ * Ensure a column exists in a table, adding it if not present
+ * Used for schema migrations on existing databases
+ * @param {string} table - Table name
+ * @param {string} column - Column name to check/add
+ * @param {string} definition - SQL column definition (e.g., 'TEXT', 'INTEGER DEFAULT 0')
+ */
 function ensureColumn(table, column, definition) {
   const columns = runQuery(`PRAGMA table_info(${table});`);
   const hasColumn = columns.some((col) => col.name === column);
@@ -12,6 +25,13 @@ function ensureColumn(table, column, definition) {
   }
 }
 
+/**
+ * Build command line arguments for sqlite3 CLI
+ * @param {string} sql - SQL query to execute
+ * @param {Array<string|number|boolean|null>} params - Query parameters (accessed as @p0, @p1, etc.)
+ * @param {boolean} asJson - Whether to return results as JSON
+ * @returns {string[]} - Array of command line arguments
+ */
 function buildArgs(sql, params, asJson = true) {
   const args = [databasePath];
   const commands = ['PRAGMA foreign_keys = ON;', '.parameter init'];
@@ -27,6 +47,15 @@ function buildArgs(sql, params, asJson = true) {
   return args;
 }
 
+/**
+ * Execute a SQL query and return results
+ * @param {string} sql - SQL query with @p0, @p1... parameter placeholders
+ * @param {Array<string|number|boolean|null>} params - Parameter values
+ * @returns {Object[]} - Array of result rows as objects
+ * @example
+ * const clients = runQuery('SELECT * FROM clients WHERE id = @p0', [1]);
+ * const mentions = runQuery('SELECT * FROM mediaMentions WHERE clientId IN (@p0, @p1)', [1, 2]);
+ */
 function runQuery(sql, params = []) {
   const output = execFileSync('sqlite3', buildArgs(sql, params, true), { encoding: 'utf8' }).trim();
   if (!output) {
@@ -35,10 +64,23 @@ function runQuery(sql, params = []) {
   return JSON.parse(output);
 }
 
+/**
+ * Execute a SQL statement without returning results (INSERT, UPDATE, DELETE)
+ * @param {string} sql - SQL statement with @p0, @p1... parameter placeholders
+ * @param {Array<string|number|boolean|null>} params - Parameter values
+ * @example
+ * runExecute('UPDATE clients SET name = @p0 WHERE id = @p1', ['New Name', 1]);
+ * runExecute('DELETE FROM mentions WHERE id = @p0', [123]);
+ */
 function runExecute(sql, params = []) {
   execFileSync('sqlite3', buildArgs(sql, params, false), { encoding: 'utf8' });
 }
 
+/**
+ * Initialize the database schema and create necessary tables/indices
+ * Safe to call multiple times - uses IF NOT EXISTS for all operations
+ * Also runs migrations to add columns for schema updates
+ */
 function initializeDatabase() {
   const directory = path.dirname(databasePath);
   if (directory && directory !== '.') {

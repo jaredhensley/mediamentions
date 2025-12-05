@@ -1,6 +1,32 @@
+/**
+ * @fileoverview Search provider implementations
+ * Currently supports Google Custom Search API
+ */
+
 const { randomUUID } = require('crypto');
 const { providerApiKeys, providerConfig } = require('../config');
 
+/**
+ * @typedef {Object} SearchResult
+ * @property {string} id - Unique identifier (UUID)
+ * @property {string} title - Result title
+ * @property {string} url - Result URL
+ * @property {string} snippet - Text snippet from the result
+ * @property {string|null} publishedAt - ISO date string or null if not found
+ * @property {string} provider - Provider name (e.g., 'google')
+ */
+
+/**
+ * @typedef {Object} SearchRequest
+ * @property {string} query - Search query string
+ * @property {string} [exactTerms] - Optional exact terms to match
+ */
+
+/**
+ * Extract published date from Google search result metatags
+ * @param {Object} item - Google search result item
+ * @returns {string|null} - ISO date string or null if not found
+ */
 function getPublishedDate(item) {
   const metatags = item.pagemap?.metatags || [];
   for (const tag of metatags) {
@@ -22,6 +48,15 @@ function getPublishedDate(item) {
   return null;
 }
 
+/**
+ * Search using Google Custom Search API
+ * Handles pagination automatically up to maxResults
+ * @param {string|SearchRequest} searchRequest - Query string or search request object
+ * @param {Object} options - Search options
+ * @param {number} options.maxResults - Maximum results to return (capped at 100)
+ * @returns {Promise<SearchResult[]>} - Array of search results
+ * @throws {Error} - If API credentials are missing or API returns an error
+ */
 async function googleSearch(searchRequest, { maxResults }) {
   if (!providerApiKeys.google) {
     throw new Error('Missing Google API key (set GOOGLE_API_KEY in your .env file)');
