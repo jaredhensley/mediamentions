@@ -31,10 +31,12 @@ function formatDomains(domains = []) {
 }
 
 function buildSearchRequest(client, profile, options = {}) {
+  // Use searchTerms from profile if available, otherwise use client name
+  const searchTerm = profile.searchTerms || client.name.trim();
   const exactTerms = client.name.trim();
   const extraPhrases = (options.extraPhrases || []).filter(Boolean);
 
-  const parts = [quoteTerm(exactTerms)];
+  const parts = [quoteTerm(searchTerm)];
   if (extraPhrases.length) {
     parts.push(...extraPhrases.map(quoteTerm));
   }

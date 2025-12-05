@@ -65,7 +65,9 @@ export default function DashboardPage() {
   };
 
   const sortedMentions = useMemo(() => {
-    return [...mentions].sort((a, b) => new Date(b.mentionDate).getTime() - new Date(a.mentionDate).getTime());
+    // Only show verified mentions (verified = 1)
+    const verifiedMentions = mentions.filter((mention) => mention.verified === 1);
+    return [...verifiedMentions].sort((a, b) => new Date(b.mentionDate).getTime() - new Date(a.mentionDate).getTime());
   }, [mentions]);
 
   const filteredMentions = useMemo(() => {
@@ -109,8 +111,12 @@ export default function DashboardPage() {
     }
   };
 
+  const verifiedCount = useMemo(() => mentions.filter((m) => m.verified === 1).length, [mentions]);
+  const unverifiedCount = useMemo(() => mentions.filter((m) => m.verified === 0).length, [mentions]);
+
   const quickStats = [
-    { label: 'Total mentions', value: mentions.length },
+    { label: 'Verified mentions', value: verifiedCount },
+    { label: 'False positives', value: unverifiedCount },
     { label: 'Today', value: todaysMentions.length },
   ];
 

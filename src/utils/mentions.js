@@ -73,7 +73,8 @@ function recordMentions(results, status) {
     }
 
     const now = new Date().toISOString();
-    const mentionDate = normalizeDate(result.publishedAt) || now;
+    // Try to extract date from snippet if publishedAt is missing
+    const mentionDate = normalizeDate(result.publishedAt) || extractDateFromSnippet(result.snippet) || now;
 
     const cleanedSnippet = cleanSnippet(result.snippet);
     const [mention] = runQuery(
@@ -107,8 +108,41 @@ function normalizeDate(value) {
   return parsed.toISOString();
 }
 
+/**
+ * Extract publication date from snippet text
+ * Looks for patterns like "Nov 10, 2025", "December 3, 2025", "12/3/2025", etc.
+ */
+function extractDateFromSnippet(snippet) {
+  if (!snippet) return null;
+
+  // Pattern 1: "Month DD, YYYY" (e.g., "Nov 10, 2025", "December 3, 2025")
+  const monthDayYearPattern = /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/i;
+  const match1 = snippet.match(monthDayYearPattern);
+  if (match1) {
+    const dateStr = `${match1[1]} ${match1[2]}, ${match1[3]}`;
+    const parsed = new Date(dateStr);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  // Pattern 2: "YYYY-MM-DD" ISO format
+  const isoPattern = /\b(\d{4})-(\d{2})-(\d{2})\b/;
+  const match2 = snippet.match(isoPattern);
+  if (match2) {
+    const parsed = new Date(match2[0]);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  return null;
+}
+
 function cleanSnippet(snippet) {
   if (!snippet) return snippet;
+
+  let cleaned = snippet;
 
   // Remove Google's timestamp prefixes like "7 hours ago ...", "2 days ago ...", etc.
   const timePatterns = [
@@ -116,12 +150,23 @@ function cleanSnippet(snippet) {
     /^\d+\s+(sec|min|hr|hrs)s?\s+ago\s*[.\-…]*\s*/i
   ];
 
-  let cleaned = snippet;
   for (const pattern of timePatterns) {
     cleaned = cleaned.replace(pattern, '');
   }
 
-  return cleaned.trim();
+  // Remove dates from snippet to avoid confusion with mentionDate
+  // Pattern 1: "Month DD, YYYY" (e.g., "Nov 10, 2025", "December 3, 2025")
+  const monthDayYearPattern = /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/gi;
+  cleaned = cleaned.replace(monthDayYearPattern, '');
+
+  // Pattern 2: "YYYY-MM-DD" ISO format
+  const isoPattern = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
+  cleaned = cleaned.replace(isoPattern, '');
+
+  // Clean up any double spaces or leading "... " artifacts
+  cleaned = cleaned.replace(/\s+/g, ' ').replace(/^[.\-…\s]+/, '').trim();
+
+  return cleaned;
 }
 
 function ensurePublication(domain, cache) {

@@ -221,6 +221,40 @@ function extractSnippetDate(snippet) {
 }
 
 /**
+ * Detect if URL appears to be a category/index page rather than an article
+ * @param {string} url - URL to check
+ * @returns {boolean} - True if URL matches category page patterns
+ */
+function isCategoryPage(url) {
+  if (!url) return false;
+
+  const urlLower = url.toLowerCase();
+
+  // Category page URL patterns
+  const categoryPatterns = [
+    /\/commodities\//,
+    /\/categories\//,
+    /\/topics?\//,
+    /\/tags?\//,
+    /\/archive/,
+    /\/all-conventions\//,
+    /\/sightings/,
+    /\/sustainability$/,
+    /\/produce-living$/,
+    /\/people$/,
+    /\/headlines$/,
+    /\/news$/,
+    /\/events$/,
+    /\/resources$/,
+    /\?category=/,
+    /\?tag=/,
+    /\?topic=/,
+  ];
+
+  return categoryPatterns.some(pattern => pattern.test(urlLower));
+}
+
+/**
  * Social media domains to exclude from all results
  * Social posts/comments are not editorial media mentions
  */
@@ -337,6 +371,20 @@ function filterResultsForClient(results, profile, client) {
         });
         return false;
       }
+    }
+
+    // RULE 1.6: Category/index pages are auto-rejects
+    // These are navigation pages, not articles
+    if (isCategoryPage(result.url)) {
+      rejectionLog.push({
+        reason: 'category_page',
+        title,
+        snippet,
+        url: result.url,
+        nameInTitle: false,
+        nameInSnippet
+      });
+      return false;
     }
 
     // RULE 2: Name MUST appear in snippet (hard requirement for Google Search phase)

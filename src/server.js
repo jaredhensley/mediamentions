@@ -746,6 +746,59 @@ async function exportMentions(_req, res, params) {
   res.end(xml);
 }
 
+function exportFalsePositives(req, res) {
+  // Get all unverified mentions (verified = 0)
+  const mentions = runQuery(`
+    SELECT
+      m.id,
+      c.name as clientName,
+      m.title,
+      m.link,
+      m.source,
+      m.mentionDate,
+      m.createdAt,
+      m.verified
+    FROM mediaMentions m
+    JOIN clients c ON m.clientId = c.id
+    WHERE m.verified = 0
+    ORDER BY m.createdAt DESC
+  `);
+
+  // Build CSV
+  const headers = ['Client', 'Title', 'URL', 'Source', 'Mention Date', 'Created At', 'Verified', 'ID'];
+  const escapeCSV = (value) => {
+    if (value == null) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = [headers.join(',')];
+  mentions.forEach(m => {
+    rows.push([
+      m.clientName,
+      m.title,
+      m.link,
+      m.source,
+      m.mentionDate,
+      m.createdAt,
+      m.verified,
+      m.id
+    ].map(escapeCSV).join(','));
+  });
+
+  const csv = rows.join('\n');
+
+  res.writeHead(200, {
+    'Content-Type': 'text/csv',
+    'Content-Disposition': `attachment; filename="false-positives-${new Date().toISOString().split('T')[0]}.csv"`,
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.end(csv);
+}
+
 const routes = [
   { method: 'GET', pattern: '/clients', handler: listClients },
   { method: 'POST', pattern: '/clients', handler: createClient },
@@ -785,6 +838,7 @@ const routes = [
 
   { method: 'GET', pattern: '/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
+  { method: 'GET', pattern: '/admin/false-positives/export', handler: exportFalsePositives },
 ];
 
 const server = http.createServer(async (req, res) => {

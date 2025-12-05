@@ -18,6 +18,7 @@ export type Mention = {
   pressReleaseId?: number | null;
   sentiment?: 'positive' | 'neutral' | 'negative';
   status?: 'new' | 'in-review' | 'published';
+  verified?: number;
 };
 
 export type PressRelease = {

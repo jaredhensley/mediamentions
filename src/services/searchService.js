@@ -6,13 +6,37 @@ const { searchConfig } = require('../config');
 const { normalizeResult, dedupeMentions, associatePressRelease, recordMentions } = require('../utils/mentions');
 const { buildSearchRequest } = require('../utils/searchQueries');
 const { filterResultsForClient } = require('../utils/searchFilters');
+const { verifyAllMentions } = require('../scripts/verifyMentions');
 
 function buildQueries(client, profile, activePressReleases) {
+  const queries = [];
+
+  // Base query (general search)
   const base = buildSearchRequest(client, profile);
+  queries.push(base);
+
+  // If client has priority publications, add a site-restricted query
+  if (profile.priorityPublications && profile.priorityPublications.length > 0) {
+    const siteRestrict = profile.priorityPublications.map(s => `site:${s}`).join(' OR ');
+    const clientName = profile.searchTerms || client.name;
+    // Use just the full name for site-restricted query (no abbreviations to avoid noise)
+    const fullName = clientName.split(' OR ')[0].replace(/"/g, '');
+    const siteQuery = {
+      query: `"${fullName}" (${siteRestrict})`,
+      exactTerms: fullName,
+      label: 'priority-publications'
+    };
+    queries.push(siteQuery);
+    console.log(`[dual-query] Added site-restricted query for ${client.name} with ${profile.priorityPublications.length} priority publications`);
+  }
+
+  // Press release queries
   const perRelease = activePressReleases.map((release) =>
     buildSearchRequest(client, profile, { extraPhrases: [release.title], label: `press:${release.title}` })
   );
-  return [base, ...perRelease];
+  queries.push(...perRelease);
+
+  return queries;
 }
 
 function hydratePressReleasesForClient(client) {
@@ -82,6 +106,21 @@ async function runSearchJob() {
 
     const created = recordMentions(associated, searchConfig.mentionStatus);
     jobLog.createdMentions += created.length;
+  }
+
+  // Run verification on all unverified mentions
+  if (jobLog.createdMentions > 0) {
+    console.log('\n[verification] Starting automatic verification of new mentions...');
+    try {
+      const verificationResults = await verifyAllMentions({ silent: false });
+      jobLog.verificationResults = verificationResults;
+      console.log(`[verification] ✓ Completed: ${verificationResults.verified} verified, ${verificationResults.failed} failed`);
+    } catch (err) {
+      console.warn(`[verification] ✗ Failed: ${err.message}`);
+      jobLog.errors.push({ step: 'verification', message: err.message });
+    }
+  } else {
+    console.log('[verification] Skipped (no new mentions created)');
   }
 
   jobLog.finishedAt = new Date().toISOString();

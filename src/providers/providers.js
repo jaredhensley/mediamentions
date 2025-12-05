@@ -18,7 +18,8 @@ function getPublishedDate(item) {
       }
     }
   }
-  return new Date().toISOString();
+  // Return null if no date found - don't default to current date
+  return null;
 }
 
 async function googleSearch(searchRequest, { maxResults }) {
@@ -33,7 +34,14 @@ async function googleSearch(searchRequest, { maxResults }) {
   const exactTerms = typeof searchRequest === 'object' ? searchRequest.exactTerms : null;
 
   const allResults = [];
-  const headers = {};
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache'
+  };
 
   if (providerConfig.googleReferer) {
     headers.Referer = providerConfig.googleReferer;

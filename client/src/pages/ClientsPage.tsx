@@ -90,6 +90,7 @@ export default function ClientsPage() {
     () =>
       mentions.filter((mention) => {
         return (
+          mention.verified === 1 &&
           mention.clientId === selectedClientId &&
           (sentimentFilter === 'all' || mention.sentiment === sentimentFilter)
         );
@@ -100,7 +101,10 @@ export default function ClientsPage() {
   const mentionCounts = useMemo(() => {
     const counts: Record<number, number> = {};
     mentions.forEach((mention) => {
-      counts[mention.clientId] = (counts[mention.clientId] || 0) + 1;
+      // Only count verified mentions
+      if (mention.verified === 1) {
+        counts[mention.clientId] = (counts[mention.clientId] || 0) + 1;
+      }
     });
     return counts;
   }, [mentions]);

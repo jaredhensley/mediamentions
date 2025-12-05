@@ -127,6 +127,7 @@ function initializeDatabase() {
   ensureColumn('mediaMentions', 'source', 'TEXT');
   ensureColumn('mediaMentions', 'sentiment', 'TEXT');
   ensureColumn('mediaMentions', 'status', 'TEXT');
+  ensureColumn('mediaMentions', 'verified', 'INTEGER DEFAULT 0');
 
   // Create indices for performance and unique constraints
   const indices = [
