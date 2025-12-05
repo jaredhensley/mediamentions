@@ -15,6 +15,9 @@
     "@mui/icons-material": "^5.15.23",
     "@mui/material": "^5.15.23",
     "@mui/x-data-grid": "^7.6.2",
+    "@nivo/bar": "^0.99.0",
+    "@nivo/core": "^0.99.0",
+    "@nivo/line": "^0.99.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"

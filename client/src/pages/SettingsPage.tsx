@@ -3,6 +3,7 @@ import { Download } from '@mui/icons-material';
 import { useColorMode } from '../theme';
 import { exportFalsePositives } from '../api';
 import { useToast } from '../hooks/useToast';
+import PendingReviewList from '../components/PendingReviewList';
 
 export default function SettingsPage() {
   const { toggle } = useColorMode();
@@ -30,24 +31,24 @@ export default function SettingsPage() {
 
       <Divider />
 
-      <Stack spacing={2}>
+      <Stack spacing={3}>
         <Typography variant="h5">Admin Tools</Typography>
-        <Stack spacing={2}>
-          <Stack spacing={1}>
-            <Typography variant="h6">False Positives Export</Typography>
-            <Typography color="text.secondary">
-              Download a CSV file of all unverified mentions (verified = 0). These are likely false positives
-              that failed verification.
-            </Typography>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadFalsePositives}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              Download False Positives CSV
-            </Button>
-          </Stack>
+
+        <PendingReviewList />
+
+        <Stack spacing={1}>
+          <Typography variant="h6">False Positives Export</Typography>
+          <Typography color="text.secondary">
+            Download a CSV file of all rejected mentions (verified = 0). These are mentions that failed verification.
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadFalsePositives}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Download False Positives CSV
+          </Button>
         </Stack>
       </Stack>
     </Stack>

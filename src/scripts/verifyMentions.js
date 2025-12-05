@@ -70,11 +70,12 @@ async function verifyWithBrowser(mention, browser) {
     };
 
   } catch (error) {
+    // Browser errors should go to manual review
     return {
       id,
-      verified: 0,
+      verified: null,
       reason: 'browser_error',
-      error: error.message
+      error: error.message + ' - needs manual review'
     };
   }
 }
@@ -110,6 +111,16 @@ async function verifyMention(mention, browser = null) {
     // If 403, try with browser
     if (response.status === 403 && browser) {
       return await verifyWithBrowser(mention, browser);
+    }
+
+    // If still blocked (403/401/429), mark for manual review (null)
+    if (response.status === 403 || response.status === 401 || response.status === 429) {
+      return {
+        id,
+        verified: null,
+        reason: 'blocked',
+        error: `HTTP ${response.status} - needs manual review`
+      };
     }
 
     if (!response.ok) {
@@ -148,11 +159,12 @@ async function verifyMention(mention, browser = null) {
 
   } catch (error) {
     const reason = error.name === 'AbortError' ? 'timeout' : 'fetch_error';
+    // Network errors should also go to manual review
     return {
       id,
-      verified: 0,
+      verified: null,
       reason,
-      error: error.message
+      error: error.message + ' - needs manual review'
     };
   }
 }
@@ -170,11 +182,13 @@ async function verifyMentionWithRetry(mention, browser) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const result = await verifyMention(mention, browser);
 
-    // Network errors that should be retried
-    const networkErrors = ['timeout', 'fetch_error', 'browser_error'];
+    // If verified or definite rejection (name_not_found, no_url, not_html), return immediately
+    if (result.verified === 1 || ['name_not_found', 'no_url', 'not_html'].includes(result.reason)) {
+      return result;
+    }
 
-    // If successful or non-retriable error, return immediately
-    if (result.verified === 1 || !networkErrors.includes(result.reason)) {
+    // If blocked/needs review, don't retry - just return for manual review
+    if (result.verified === null) {
       return result;
     }
 
@@ -187,7 +201,11 @@ async function verifyMentionWithRetry(mention, browser) {
     }
   }
 
-  // All retries failed, return last result
+  // All retries failed, mark for manual review
+  if (lastResult) {
+    lastResult.verified = null;
+    lastResult.error = (lastResult.error || '') + ' - needs manual review after retries';
+  }
   return lastResult;
 }
 
@@ -216,6 +234,7 @@ async function main() {
     total: mentions.length,
     verified: 0,
     failed: 0,
+    needs_review: 0,
     already_verified: 0,
     browser_used: 0,
     errors: {}
@@ -259,6 +278,10 @@ async function main() {
         results.verified++;
         const method = result.reason === 'verified_browser' ? ' [BROWSER]' : '';
         console.log(` ✓ VERIFIED${method}`);
+      } else if (result.verified === null) {
+        results.needs_review++;
+        results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
+        console.log(` ⚠ NEEDS REVIEW (${result.reason}${result.error ? ': ' + result.error : ''})`);
       } else {
         results.failed++;
         results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
@@ -283,13 +306,17 @@ async function main() {
   console.log(`Already verified:    ${results.already_verified}`);
   console.log(`Newly verified:      ${results.verified}`);
   console.log(`  Via browser:       ${results.browser_used}`);
+  console.log(`Needs manual review: ${results.needs_review}`);
   console.log(`Failed to verify:    ${results.failed}`);
-  console.log(`Verification rate:   ${Math.round((results.verified / (results.total - results.already_verified)) * 100)}%`);
-  console.log('\nFailure reasons:');
+  const processed = results.total - results.already_verified;
+  const rate = processed > 0 ? Math.round((results.verified / processed) * 100) : 0;
+  console.log(`Verification rate:   ${rate}%`);
+  console.log('\nReasons:');
   Object.entries(results.errors)
     .sort((a, b) => b[1] - a[1])
     .forEach(([reason, count]) => {
-      const pct = Math.round((count / results.failed) * 100);
+      const total = results.failed + results.needs_review;
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
       console.log(`  ${reason}: ${count} (${pct}%)`);
     });
   console.log('='.repeat(60) + '\n');
@@ -326,6 +353,7 @@ async function verifyAllMentions({ silent = false } = {}) {
     total: mentions.length,
     verified: 0,
     failed: 0,
+    needs_review: 0,
     already_verified: 0,
     browser_used: 0,
     errors: {}
@@ -369,6 +397,10 @@ async function verifyAllMentions({ silent = false } = {}) {
         results.verified++;
         const method = result.reason === 'verified_browser' ? ' [BROWSER]' : '';
         log(` ✓ VERIFIED${method}`);
+      } else if (result.verified === null) {
+        results.needs_review++;
+        results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
+        log(` ⚠ NEEDS REVIEW (${result.reason}${result.error ? ': ' + result.error : ''})`);
       } else {
         results.failed++;
         results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
@@ -385,7 +417,8 @@ async function verifyAllMentions({ silent = false } = {}) {
         total: mentions.length - results.already_verified,
         processed: i + 1 - results.already_verified,
         verified: results.verified,
-        failed: results.failed
+        failed: results.failed,
+        needs_review: results.needs_review
       });
 
       // Rate limiting between requests (configurable)
@@ -406,13 +439,17 @@ async function verifyAllMentions({ silent = false } = {}) {
   log(`Already verified:    ${results.already_verified}`);
   log(`Newly verified:      ${results.verified}`);
   log(`  Via browser:       ${results.browser_used}`);
+  log(`Needs manual review: ${results.needs_review}`);
   log(`Failed to verify:    ${results.failed}`);
-  log(`Verification rate:   ${Math.round((results.verified / (results.total - results.already_verified)) * 100)}%`);
-  log('\nFailure reasons:');
+  const processed = results.total - results.already_verified;
+  const rate = processed > 0 ? Math.round((results.verified / processed) * 100) : 0;
+  log(`Verification rate:   ${rate}%`);
+  log('\nReasons:');
   Object.entries(results.errors)
     .sort((a, b) => b[1] - a[1])
     .forEach(([reason, count]) => {
-      const pct = Math.round((count / results.failed) * 100);
+      const total = results.failed + results.needs_review;
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
       log(`  ${reason}: ${count} (${pct}%)`);
     });
   log('='.repeat(60) + '\n');

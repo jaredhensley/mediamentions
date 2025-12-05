@@ -773,6 +773,74 @@ function exportFalsePositives(req, res) {
 }
 
 // ============================================================================
+// PENDING REVIEW HANDLERS
+// ============================================================================
+
+function listPendingReview(req, res) {
+  const mentions = runQuery(`
+    SELECT
+      m.id,
+      m.title,
+      m.link,
+      m.source,
+      m.mentionDate,
+      m.createdAt,
+      m.verified,
+      c.name as clientName,
+      c.id as clientId
+    FROM mediaMentions m
+    JOIN clients c ON m.clientId = c.id
+    WHERE m.verified IS NULL
+    ORDER BY m.createdAt DESC
+  `);
+
+  sendJson(res, 200, mentions);
+}
+
+function acceptPendingReview(req, res, params) {
+  const id = Number(params.id);
+  if (isNaN(id)) {
+    return sendJson(res, 400, { error: 'Invalid ID' });
+  }
+
+  const mention = runQuery('SELECT * FROM mediaMentions WHERE id = @p0', [id])[0];
+  if (!mention) {
+    return sendJson(res, 404, { error: 'Mention not found' });
+  }
+
+  if (mention.verified !== null) {
+    return sendJson(res, 400, { error: 'Mention is not pending review' });
+  }
+
+  runQuery('UPDATE mediaMentions SET verified = 1 WHERE id = @p0', [id]);
+  sendJson(res, 200, { success: true, id, verified: 1 });
+}
+
+function rejectPendingReview(req, res, params) {
+  const id = Number(params.id);
+  if (isNaN(id)) {
+    return sendJson(res, 400, { error: 'Invalid ID' });
+  }
+
+  const mention = runQuery('SELECT * FROM mediaMentions WHERE id = @p0', [id])[0];
+  if (!mention) {
+    return sendJson(res, 404, { error: 'Mention not found' });
+  }
+
+  if (mention.verified !== null) {
+    return sendJson(res, 400, { error: 'Mention is not pending review' });
+  }
+
+  runQuery('UPDATE mediaMentions SET verified = 0 WHERE id = @p0', [id]);
+  sendJson(res, 200, { success: true, id, verified: 0 });
+}
+
+function getPendingReviewCount(req, res) {
+  const result = runQuery('SELECT COUNT(*) as count FROM mediaMentions WHERE verified IS NULL')[0];
+  sendJson(res, 200, { count: result?.count || 0 });
+}
+
+// ============================================================================
 // ROUTE TABLE
 // ============================================================================
 
@@ -817,6 +885,11 @@ const routes = [
   { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/admin/false-positives/export', handler: exportFalsePositives },
   { method: 'GET', pattern: '/api/verification-status', handler: verificationStatus },
+
+  { method: 'GET', pattern: '/admin/pending-review', handler: listPendingReview },
+  { method: 'GET', pattern: '/admin/pending-review/count', handler: getPendingReviewCount },
+  { method: 'POST', pattern: '/admin/pending-review/:id/accept', handler: acceptPendingReview },
+  { method: 'POST', pattern: '/admin/pending-review/:id/reject', handler: rejectPendingReview },
 ];
 
 module.exports = {

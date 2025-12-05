@@ -166,3 +166,32 @@ export async function exportClientMentions(clientId: number, clientName: string)
   const blob = await fetchBlob(`/clients/${clientId}/mentions/export`);
   downloadBlob(blob, `${clientName || 'mentions'}.xls`);
 }
+
+// Pending Review
+export interface PendingReviewMention {
+  id: number;
+  title: string;
+  link: string;
+  source: string | null;
+  mentionDate: string;
+  createdAt: string;
+  verified: null;
+  clientName: string;
+  clientId: number;
+}
+
+export function fetchPendingReview(): Promise<PendingReviewMention[]> {
+  return fetchJson('/admin/pending-review');
+}
+
+export function fetchPendingReviewCount(): Promise<{ count: number }> {
+  return fetchJson('/admin/pending-review/count');
+}
+
+export function acceptPendingReview(id: number): Promise<{ success: boolean; id: number; verified: number }> {
+  return fetchJson(`/admin/pending-review/${id}/accept`, { method: 'POST' });
+}
+
+export function rejectPendingReview(id: number): Promise<{ success: boolean; id: number; verified: number }> {
+  return fetchJson(`/admin/pending-review/${id}/reject`, { method: 'POST' });
+}

@@ -5,22 +5,28 @@ import {
   ButtonGroup,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Grid,
-  IconButton,
   Link,
-  List,
-  ListItem,
-  ListItemText,
+  Pagination,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { ResponsiveBar } from '@nivo/bar';
 import { useNavigate } from 'react-router-dom';
 import { fetchClients, fetchMentions, deleteMention } from '../api';
 import { Client, Mention } from '../data';
-import { formatDisplayDate, formatRelativeTime } from '../utils/format';
+import { formatDisplayDate } from '../utils/format';
 import { useWebSocket, WebSocketMessage } from '../hooks/useWebSocket';
 import { useToast } from '../hooks/useToast';
 
@@ -32,6 +38,8 @@ export default function DashboardPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
   const { showError } = useToast();
 
@@ -117,6 +125,13 @@ export default function DashboardPage() {
     });
   }, [sortedMentions, dateFilter, customStartDate, customEndDate]);
 
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filteredMentions.length / ITEMS_PER_PAGE);
+  const paginatedMentions = useMemo(
+    () => filteredMentions.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
+    [filteredMentions, page],
+  );
+
   const todaysMentions = useMemo(
     () => sortedMentions.filter((mention) => mention.mentionDate.slice(0, 10) === today),
     [sortedMentions, today],
@@ -126,16 +141,44 @@ export default function DashboardPage() {
     [clients],
   );
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this mention?')) {
+  // Reset selection and page when filter changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setPage(1);
+  }, [dateFilter, customStartDate, customEndDate]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredMentions.map((m) => m.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} mention(s)?`)) {
       return;
     }
 
     try {
-      await deleteMention(id);
-      setMentions((prev) => prev.filter((mention) => mention.id !== id));
+      await Promise.all([...selectedIds].map((id) => deleteMention(id)));
+      setMentions((prev) => prev.filter((mention) => !selectedIds.has(mention.id)));
+      setSelectedIds(new Set());
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to delete mention');
+      showError(err instanceof Error ? err.message : 'Failed to delete mentions');
     }
   };
 
@@ -148,150 +191,322 @@ export default function DashboardPage() {
     { label: 'Today', value: todaysMentions.length },
   ];
 
+  // Prepare bar chart data - mentions by client, stacked by publication
+  const { chartData, publicationKeys } = useMemo(() => {
+    // Count mentions per source (publication)
+    const sourceCounts: Record<string, number> = {};
+    sortedMentions.forEach((mention) => {
+      const source = mention.source || 'Unknown';
+      sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+    });
+
+    // Get top 5 publications, rest become "Other"
+    const sortedSources = Object.entries(sourceCounts)
+      .sort((a, b) => b[1] - a[1]);
+    const topSources = sortedSources.slice(0, 5).map(([name]) => name);
+    const hasOther = sortedSources.length > 5;
+
+    // Build publication keys for the chart
+    const keys = hasOther ? [...topSources, 'Other'] : topSources;
+
+    // Group mentions by client and publication
+    const clientData: Record<number, Record<string, number>> = {};
+
+    sortedMentions.forEach((mention) => {
+      if (!clientData[mention.clientId]) {
+        clientData[mention.clientId] = {};
+        keys.forEach((key) => {
+          clientData[mention.clientId][key] = 0;
+        });
+      }
+
+      const source = mention.source || 'Unknown';
+      const key = topSources.includes(source) ? source : 'Other';
+      if (clientData[mention.clientId][key] !== undefined) {
+        clientData[mention.clientId][key]++;
+      }
+    });
+
+    // Convert to Nivo bar format
+    const data = Object.entries(clientData).map(([clientId, pubs]) => ({
+      client: clientNameById[Number(clientId)] || `Client #${clientId}`,
+      ...pubs,
+    }));
+
+    return { chartData: data, publicationKeys: keys };
+  }, [sortedMentions, clientNameById]);
+
   return (
-    <Stack spacing={3}>
-      <Typography variant="h4">Dashboard</Typography>
-      <Grid container spacing={2}>
+    <Stack sx={{ height: 'calc(100vh - 112px)', overflow: 'hidden' }}>
+      <Typography variant="h4" sx={{ flexShrink: 0, mb: 1 }}>Dashboard</Typography>
+      <Grid container spacing={1} sx={{ flexShrink: 0, mb: 1 }}>
         {quickStats.map((stat) => (
           <Grid item xs={12} sm={6} md={3} key={stat.label}>
             <Card>
-              <CardContent>
-                <Typography variant="overline">{stat.label}</Typography>
-                <Typography variant="h5">{stat.value}</Typography>
+              <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+                <Typography variant="overline" sx={{ lineHeight: 1.2 }}>{stat.label}</Typography>
+                <Typography variant="h6">{stat.value}</Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack spacing={2}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-              <Typography variant="h6">Recent mentions</Typography>
-              <Chip label={`${filteredMentions.length} results`} color="primary" variant="outlined" />
-            </Box>
-
-            <Box display="flex" flexDirection="column" gap={2}>
-              <ButtonGroup size="small" variant="outlined">
-                <Button
-                  variant={dateFilter === '1d' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('1d')}
-                >
-                  Last 24h
-                </Button>
-                <Button
-                  variant={dateFilter === '3d' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('3d')}
-                >
-                  Last 3 days
-                </Button>
-                <Button
-                  variant={dateFilter === '1w' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('1w')}
-                >
-                  Last week
-                </Button>
-                <Button
-                  variant={dateFilter === '30d' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('30d')}
-                >
-                  Last 30 days
-                </Button>
-                <Button
-                  variant={dateFilter === 'all' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('all')}
-                >
-                  All time
-                </Button>
-                <Button
-                  variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
-                  onClick={() => setDateFilter('custom')}
-                >
-                  Custom
-                </Button>
-              </ButtonGroup>
-
-              {dateFilter === 'custom' && (
-                <Box display="flex" gap={2} flexWrap="wrap">
-                  <TextField
-                    label="Start date"
-                    type="date"
-                    size="small"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                  <TextField
-                    label="End date"
-                    type="date"
-                    size="small"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                  />
+      <Grid container spacing={1} sx={{ flex: 1, minHeight: 0, height: '100%' }}>
+        <Grid item xs={12} md={7} sx={{ display: 'flex', minHeight: 0, maxHeight: '100%' }}>
+          <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', overflow: 'hidden' }}>
+            <CardContent sx={{ py: 1.5, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <Stack spacing={1} sx={{ flex: 1, minHeight: 0 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                  <Typography variant="subtitle1">Recent mentions</Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {selectedIds.size > 0 && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={handleBulkDelete}
+                      >
+                        Delete ({selectedIds.size})
+                      </Button>
+                    )}
+                    <Chip label={`${filteredMentions.length} results`} color="primary" variant="outlined" size="small" />
+                  </Stack>
                 </Box>
-              )}
-            </Box>
 
-            {filteredMentions.length === 0 ? (
-              <Typography color="text.secondary">
-                {mentions.length === 0 ? 'No mentions recorded yet.' : 'No mentions in selected date range.'}
+                <Box display="flex" flexDirection="column" gap={1}>
+                  <ButtonGroup size="small" variant="outlined">
+                    <Button
+                      variant={dateFilter === '1d' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('1d')}
+                    >
+                      24h
+                    </Button>
+                    <Button
+                      variant={dateFilter === '3d' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('3d')}
+                    >
+                      3d
+                    </Button>
+                    <Button
+                      variant={dateFilter === '1w' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('1w')}
+                    >
+                      1w
+                    </Button>
+                    <Button
+                      variant={dateFilter === '30d' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('30d')}
+                    >
+                      30d
+                    </Button>
+                    <Button
+                      variant={dateFilter === 'all' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('all')}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
+                      onClick={() => setDateFilter('custom')}
+                    >
+                      Custom
+                    </Button>
+                  </ButtonGroup>
+
+                  {dateFilter === 'custom' && (
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                      <TextField
+                        label="Start date"
+                        type="date"
+                        size="small"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="End date"
+                        type="date"
+                        size="small"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                  )}
+                </Box>
+
+                {filteredMentions.length === 0 ? (
+                  <Typography color="text.secondary">
+                    {mentions.length === 0 ? 'No mentions recorded yet.' : 'No mentions in selected date range.'}
+                  </Typography>
+                ) : (
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            size="small"
+                            checked={filteredMentions.length > 0 && filteredMentions.every((m) => selectedIds.has(m.id))}
+                            indeterminate={filteredMentions.some((m) => selectedIds.has(m.id)) && !filteredMentions.every((m) => selectedIds.has(m.id))}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ px: 1 }}>Client</TableCell>
+                        <TableCell sx={{ px: 1 }}>Title</TableCell>
+                        <TableCell sx={{ px: 1 }}>Date</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paginatedMentions.map((mention) => (
+                        <TableRow key={mention.id} selected={selectedIds.has(mention.id)}>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={selectedIds.has(mention.id)}
+                              onChange={(e) => handleSelectOne(mention.id, e.target.checked)}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ px: 1 }}>
+                            <Chip
+                              label={clientNameById[mention.clientId] || `Client #${mention.clientId}`}
+                              size="small"
+                              variant="outlined"
+                              onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
+                              sx={{ cursor: 'pointer' }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ px: 1 }}>
+                            <Box sx={{ maxWidth: 280 }}>
+                              <Tooltip title={mention.title}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {mention.title}
+                                </Typography>
+                              </Tooltip>
+                              {mention.link && (
+                                <Link
+                                  href={mention.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  sx={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 0.5 }}
+                                >
+                                  View article <OpenInNewIcon sx={{ fontSize: 12 }} />
+                                </Link>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ px: 1, whiteSpace: 'nowrap' }}>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {formatDisplayDate(mention.mentionDate)}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {totalPages > 1 && (
+                    <Box display="flex" justifyContent="center" pt={1}>
+                      <Pagination
+                        count={totalPages}
+                        page={page}
+                        onChange={(_, value) => setPage(value)}
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                  </Box>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={5} sx={{ display: 'flex', minHeight: 300 }}>
+          <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'inherit' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 1.5, minHeight: 0, overflow: 'hidden' }}>
+              <Typography variant="subtitle1" sx={{ flexShrink: 0 }} gutterBottom>
+                Mentions by Client
               </Typography>
-            ) : (
-              <List>
-                {filteredMentions.map((mention) => (
-                <ListItem
-                  key={mention.id}
-                  divider
-                  secondaryAction={
-                    <IconButton edge="end" aria-label="delete" onClick={() => handleDelete(mention.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      mention.link ? (
-                        <Link href={mention.link} target="_blank" rel="noreferrer noopener" underline="hover">
-                          {mention.title}
-                        </Link>
-                      ) : (
-                        mention.title
-                      )
-                    }
-                    secondary={
-                      <>
-                        <Typography component="span" display="block" color="text.primary">
-                          {formatDisplayDate(mention.mentionDate)}
-                          {formatRelativeTime(mention.mentionDate)
-                            ? ` • ${formatRelativeTime(mention.mentionDate)}`
-                            : ''}
-                          {' • '}
-                          <Link
-                            component="button"
-                            type="button"
-                            underline="hover"
-                            onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
-                          >
-                            {clientNameById[mention.clientId] || `Client #${mention.clientId}`}
-                          </Link>
-                        </Typography>
-                        {mention.subjectMatter && (
-                          <Typography component="span" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                            {mention.subjectMatter}
-                          </Typography>
-                        )}
-                      </>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-          </Stack>
-        </CardContent>
-      </Card>
+              <Box sx={{ flex: 1, minHeight: 0 }}>
+                <ResponsiveBar
+                  data={chartData}
+                  keys={publicationKeys}
+                  indexBy="client"
+                  margin={{ top: 10, right: 100, bottom: 50, left: 60 }}
+                  padding={0.3}
+                  valueScale={{ type: 'linear' }}
+                  indexScale={{ type: 'band', round: true }}
+                  colors={(bar) => bar.id === 'Other' ? '#9e9e9e' : ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb'][publicationKeys.indexOf(bar.id as string) % 5]}
+                  borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+                  axisTop={null}
+                  axisRight={null}
+                  axisBottom={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: -25,
+                    truncateTickAt: 12,
+                  }}
+                  axisLeft={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: 0,
+                  }}
+                  labelSkipWidth={12}
+                  labelSkipHeight={12}
+                  labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+                  legends={[
+                    {
+                      dataFrom: 'keys',
+                      anchor: 'bottom-right',
+                      direction: 'column',
+                      justify: false,
+                      translateX: 100,
+                      translateY: 0,
+                      itemsSpacing: 2,
+                      itemWidth: 90,
+                      itemHeight: 20,
+                      itemDirection: 'left-to-right',
+                      itemOpacity: 0.85,
+                      symbolSize: 12,
+                      effects: [
+                        {
+                          on: 'hover',
+                          style: {
+                            itemOpacity: 1,
+                          },
+                        },
+                      ],
+                    },
+                  ]}
+                  tooltip={({ id, value, color, indexValue }) => (
+                    <Box
+                      sx={{
+                        background: 'white',
+                        padding: '8px 12px',
+                        border: '1px solid #ccc',
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Typography variant="body2">
+                        <Box component="span" sx={{ display: 'inline-block', width: 12, height: 12, backgroundColor: color, mr: 1 }} />
+                        <strong>{indexValue}</strong> - {id}: {value}
+                      </Typography>
+                    </Box>
+                  )}
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Stack>
   );
 }
