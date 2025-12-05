@@ -3,6 +3,8 @@ const { initializeDatabase, runQuery } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 const { scheduleDailySearch } = require('./services/scheduler');
+const { getStatus: getVerificationStatus } = require('./services/verificationStatus');
+const { initWebSocket } = require('./services/websocket');
 
 initializeDatabase();
 seedDefaultClients();
@@ -746,6 +748,11 @@ async function exportMentions(_req, res, params) {
   res.end(xml);
 }
 
+function verificationStatus(_req, res) {
+  const status = getVerificationStatus();
+  sendJson(res, 200, status);
+}
+
 function exportFalsePositives(req, res) {
   // Get all unverified mentions (verified = 0)
   const mentions = runQuery(`
@@ -839,6 +846,7 @@ const routes = [
   { method: 'GET', pattern: '/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/admin/false-positives/export', handler: exportFalsePositives },
+  { method: 'GET', pattern: '/api/verification-status', handler: verificationStatus },
 ];
 
 const server = http.createServer(async (req, res) => {
@@ -872,4 +880,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`Server listening on port ${PORT}`);
+
+  // Initialize WebSocket server for real-time updates
+  initWebSocket(server);
 });

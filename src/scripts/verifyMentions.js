@@ -2,6 +2,7 @@
 
 const { runQuery, runExecute } = require('../db');
 const puppeteer = require('puppeteer');
+const { broadcastMentionVerified, broadcastVerificationStatus } = require('../services/websocket');
 
 /**
  * Check if client name appears in text content
@@ -372,6 +373,19 @@ async function verifyAllMentions({ silent = false } = {}) {
         results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
         log(` ✗ FAILED (${result.reason}${result.error ? ': ' + result.error : ''})`);
       }
+
+      // Broadcast verification result via WebSocket
+      broadcastMentionVerified(mention, result);
+
+      // Broadcast progress update
+      broadcastVerificationStatus({
+        isRunning: true,
+        phase: 'verifying',
+        total: mentions.length - results.already_verified,
+        processed: i + 1 - results.already_verified,
+        verified: results.verified,
+        failed: results.failed
+      });
 
       // Rate limiting: 500ms between requests
       if (i < mentions.length - 1) {

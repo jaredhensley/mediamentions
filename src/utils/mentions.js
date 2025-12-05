@@ -1,4 +1,5 @@
 const { runQuery } = require('../db');
+const { broadcastNewMention } = require('../services/websocket');
 
 function normalizeResult(result, client) {
   const domain = extractDomain(result.url);
@@ -94,6 +95,9 @@ function recordMentions(results, status) {
         now
       ]
     );
+
+    // Broadcast new mention via WebSocket
+    broadcastNewMention(mention);
 
     created.push(mention);
   }

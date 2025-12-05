@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchClients, fetchMentions, deleteMention } from '../api';
 import { Client, Mention } from '../data';
 import { formatDisplayDate, formatRelativeTime } from '../utils/format';
+import { useWebSocket, WebSocketMessage } from '../hooks/useWebSocket';
 
 type DateFilter = '1d' | '3d' | '1w' | '30d' | 'all' | 'custom';
 
@@ -32,6 +33,32 @@ export default function DashboardPage() {
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const navigate = useNavigate();
+
+  // Handle WebSocket messages for real-time updates
+  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
+    if (message.type === 'mention_verified') {
+      // Update the verified status of a mention
+      setMentions((prev) =>
+        prev.map((mention) =>
+          mention.id === message.mentionId
+            ? { ...mention, verified: message.verified ?? mention.verified }
+            : mention
+        )
+      );
+    } else if (message.type === 'new_mention' && message.mention) {
+      // Add new mention to the list
+      setMentions((prev) => {
+        const newMention = message.mention as Mention;
+        // Avoid duplicates
+        if (prev.some((m) => m.id === newMention.id)) {
+          return prev;
+        }
+        return [newMention, ...prev];
+      });
+    }
+  }, []);
+
+  useWebSocket(handleWebSocketMessage);
 
   useEffect(() => {
     fetchMentions()

@@ -32,6 +32,22 @@ const ND_PUBLICATIONS = [
   'minotdailynews.com'
 ];
 
+// Priority publications for Dakota Angus (Angus breed + ND regional + sponsors)
+const DAKOTA_ANGUS_PUBLICATIONS = [
+  // Angus breed publications
+  'angusjournal.com',
+  'certifiedangusbeef.com',
+  // ND regional news/media
+  'aberdeeninsider.com',
+  'aberdeennews.com',
+  'bismarcktribune.com',
+  'inforum.com',
+  'kfyrtv.com',
+  'kfgo.com',
+  // Sponsorship/partnership mentions
+  'northwoodsleague.com'
+];
+
 const clientSearchProfiles = [
   {
     name: 'Bushwick Commission',
@@ -118,12 +134,12 @@ const clientSearchProfiles = [
   },
   {
     name: 'Dakota Angus',
-    // Cattle industry - uses cattle/beef publications
-    searchTerms: 'Dakota Angus',
+    // Angus beef producer in Drake, ND - Certified Angus Beef licensed retailer
+    searchTerms: '"Dakota Angus" OR "Dakota Angus LLC"',
     contextWords: [],
-    excludeWords: ['recipe', 'restaurant', 'steakhouse', 'burger', 'menu'],
+    excludeWords: ['recipe', 'restaurant', 'steakhouse', 'burger', 'menu', 'cattle tour', 'angus association', 'South Dakota Angus'],
     ownDomains: ['dakotaangusllc.com', 'ndangus.com'],
-    priorityPublications: CATTLE_PUBLICATIONS
+    priorityPublications: DAKOTA_ANGUS_PUBLICATIONS
   },
   {
     name: 'Equitable Food Initiative',

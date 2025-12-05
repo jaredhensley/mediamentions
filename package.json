@@ -15,7 +15,8 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "node-cron": "^3.0.3",
-    "puppeteer": "^24.32.0"
+    "puppeteer": "^24.32.0",
+    "ws": "^8.18.3"
   },
   "keywords": [],
   "author": "",

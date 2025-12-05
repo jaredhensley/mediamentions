@@ -23,6 +23,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { Link, useLocation } from 'react-router-dom';
 import { useColorMode } from '../theme';
+import VerificationStatus from './VerificationStatus';
 
 const drawerWidth = 240;
 
@@ -47,6 +48,7 @@ export default function Layout({ children }: PropsWithChildren) {
             Media Mentions Monitor
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          <VerificationStatus />
           <IconButton color="inherit" onClick={toggle} aria-label="Toggle color mode">
             {theme.palette.mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
