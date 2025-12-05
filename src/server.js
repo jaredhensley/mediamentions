@@ -21,15 +21,6 @@ initializeDatabase();
 seedDefaultClients();
 seedDefaultPublications();
 
-// Kick off scheduled searches and run one immediately to populate mentions.
-(async () => {
-  try {
-    await scheduleDailySearch({ runImmediately: true });
-  } catch (err) {
-    console.error('[scheduler] failed to start search scheduler', err);
-  }
-})();
-
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(async (req, res) => {
@@ -76,10 +67,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   // eslint-disable-next-line no-console
   console.log(`Server listening on port ${PORT}`);
 
-  // Initialize WebSocket server for real-time updates
+  // Initialize WebSocket server for real-time updates BEFORE starting scheduler
   initWebSocket(server);
+
+  // Kick off scheduled searches and run one immediately to populate mentions
+  try {
+    await scheduleDailySearch({ runImmediately: true });
+  } catch (err) {
+    console.error('[scheduler] failed to start search scheduler', err);
+  }
 });

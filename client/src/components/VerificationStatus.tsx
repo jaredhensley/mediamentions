@@ -3,19 +3,7 @@ import { Box, CircularProgress, Typography, Tooltip, Chip } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SearchIcon from '@mui/icons-material/Search';
 import { useWebSocket, WebSocketMessage } from '../hooks/useWebSocket';
-
-interface VerificationStatusData {
-  isRunning: boolean;
-  phase: 'idle' | 'searching' | 'verifying' | 'complete';
-  total: number;
-  processed: number;
-  verified: number;
-  failed: number;
-  startedAt: string | null;
-  completedAt: string | null;
-}
-
-const API_BASE = 'http://localhost:3000';
+import { fetchVerificationStatus, VerificationStatusData } from '../api';
 
 export default function VerificationStatus() {
   const [status, setStatus] = useState<VerificationStatusData | null>(null);
@@ -51,23 +39,15 @@ export default function VerificationStatus() {
   useWebSocket(handleWebSocketMessage);
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/verification-status`);
-        if (response.ok) {
-          const data = await response.json();
-          setStatus(data);
-          setError(false);
-        } else {
-          setError(true);
-        }
-      } catch {
-        setError(true);
-      }
-    };
-
     // Initial fetch only - WebSocket handles updates
-    fetchStatus();
+    fetchVerificationStatus()
+      .then(data => {
+        setStatus(data);
+        setError(false);
+      })
+      .catch(() => {
+        setError(true);
+      });
   }, []);
 
   if (error || !status) {

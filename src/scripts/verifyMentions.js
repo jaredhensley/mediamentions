@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 const { runQuery, runExecute } = require('../db');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { broadcastMentionVerified, broadcastVerificationStatus } = require('../services/websocket');
+
+// Use stealth plugin to avoid Cloudflare detection
+puppeteer.use(StealthPlugin());
 const { config } = require('../config');
 
 /**
@@ -60,6 +64,34 @@ async function verifyWithBrowser(mention, browser) {
     });
 
     await page.close();
+
+    // Detect Cloudflare/WAF block pages - send to manual review instead of false positive
+    const blockIndicators = [
+      'access denied',
+      'ray id',
+      'cloudflare',
+      'verify you are human',
+      'checking your browser',
+      'please wait while we verify',
+      'just a moment',
+      'enable javascript and cookies',
+      'blocked',
+      '403 forbidden',
+      'attention required'
+    ];
+    const isBlockedPage = blockIndicators.some(indicator => textContent.includes(indicator));
+
+    // Also check for suspiciously short content (block pages are usually small)
+    const isSuspiciouslyShort = textContent.length < 500;
+
+    if (isBlockedPage || isSuspiciouslyShort) {
+      return {
+        id,
+        verified: null,
+        reason: 'blocked_page_detected',
+        error: 'Page appears to be blocked or challenge page - needs manual review'
+      };
+    }
 
     const verified = checkClientNameInContent(textContent, clientName) ? 1 : 0;
     return {

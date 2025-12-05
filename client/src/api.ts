@@ -195,3 +195,19 @@ export function acceptPendingReview(id: number): Promise<{ success: boolean; id:
 export function rejectPendingReview(id: number): Promise<{ success: boolean; id: number; verified: number }> {
   return fetchJson(`/admin/pending-review/${id}/reject`, { method: 'POST' });
 }
+
+// Verification Status
+export interface VerificationStatusData {
+  isRunning: boolean;
+  phase: 'idle' | 'searching' | 'verifying' | 'complete';
+  total: number;
+  processed: number;
+  verified: number;
+  failed: number;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export function fetchVerificationStatus(): Promise<VerificationStatusData> {
+  return fetchJson('/api/verification-status');
+}
