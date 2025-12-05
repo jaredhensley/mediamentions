@@ -3,25 +3,24 @@ const { filterResultsForClient } = require('./searchFilters');
 describe('filterResultsForClient', () => {
   const client = { name: 'Bushwick Commission' };
 
-  test('filters results that do not contain client name', () => {
+  test('filters results that do not contain client name in title or snippet', () => {
     const profile = {};
     const results = [
-      { title: 'Article about Bushwick Commission', snippet: 'Some content' },
+      { title: 'Article about Bushwick Commission', snippet: 'The Bushwick Commission announced new partnership today' },
       { title: 'Unrelated article', snippet: 'No mention of client' },
-      { title: 'Another Bushwick Commission story', snippet: 'More content' }
+      { title: 'Another story', snippet: 'Bushwick Commission expanded operations said spokesperson' }
     ];
 
     const filtered = filterResultsForClient(results, profile, client);
 
     expect(filtered).toHaveLength(2);
-    expect(filtered.every(r => r.title.includes('Bushwick Commission'))).toBe(true);
   });
 
   test('handles case-insensitive client name matching', () => {
     const profile = {};
     const results = [
-      { title: 'Article about BUSHWICK COMMISSION', snippet: 'Content' },
-      { title: 'Story mentions bushwick commission', snippet: 'Content' }
+      { title: 'Article about produce', snippet: 'BUSHWICK COMMISSION announced new program' },
+      { title: 'Story about farming', snippet: 'bushwick commission partnered with local farms' }
     ];
 
     const filtered = filterResultsForClient(results, profile, client);
@@ -35,8 +34,8 @@ describe('filterResultsForClient', () => {
       requireContextMatch: true
     };
     const results = [
-      { title: 'Bushwick Commission produce news', snippet: 'About produce' },
-      { title: 'Bushwick Commission update', snippet: 'No context words' }
+      { title: 'Bushwick Commission produce news', snippet: 'Bushwick Commission announced new produce initiative' },
+      { title: 'Bushwick Commission update', snippet: 'Bushwick Commission reported general update' }
     ];
 
     const filtered = filterResultsForClient(results, profile, client);

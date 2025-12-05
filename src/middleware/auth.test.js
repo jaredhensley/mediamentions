@@ -1,4 +1,14 @@
+// Mock the config module before importing auth
+jest.mock('../config', () => ({
+  config: {
+    auth: {
+      apiKey: null // Default to no key configured
+    }
+  }
+}));
+
 const { requireApiKey } = require('./auth');
+const { config } = require('../config');
 
 describe('requireApiKey', () => {
   let req, res, next;
@@ -10,16 +20,12 @@ describe('requireApiKey', () => {
       end: jest.fn()
     };
     next = jest.fn();
-  });
-
-  const originalEnv = process.env;
-
-  afterAll(() => {
-    process.env = originalEnv;
+    // Reset config between tests
+    config.auth.apiKey = null;
   });
 
   test('allows request when no API key is configured', () => {
-    delete process.env.API_KEY;
+    config.auth.apiKey = null;
 
     requireApiKey(req, res, next);
 
@@ -28,7 +34,7 @@ describe('requireApiKey', () => {
   });
 
   test('rejects request without API key header when configured', () => {
-    process.env.API_KEY = 'test-key';
+    config.auth.apiKey = 'test-key';
 
     requireApiKey(req, res, next);
 
@@ -38,7 +44,7 @@ describe('requireApiKey', () => {
   });
 
   test('rejects request with invalid API key', () => {
-    process.env.API_KEY = 'test-key';
+    config.auth.apiKey = 'test-key';
     req.headers['x-api-key'] = 'wrong-key';
 
     requireApiKey(req, res, next);
@@ -48,7 +54,7 @@ describe('requireApiKey', () => {
   });
 
   test('allows request with valid API key', () => {
-    process.env.API_KEY = 'test-key';
+    config.auth.apiKey = 'test-key';
     req.headers['x-api-key'] = 'test-key';
 
     requireApiKey(req, res, next);
