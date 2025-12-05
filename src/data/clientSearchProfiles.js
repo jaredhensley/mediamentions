@@ -1,123 +1,147 @@
+// Common priority publications for produce industry clients
+const PRODUCE_PUBLICATIONS = [
+  'thepacker.com',
+  'andnowuknow.com',
+  'theproducenews.com',
+  'perishablenews.com',
+  'freshplaza.com',
+  'bluebookservices.com',
+  'producebusiness.com',
+  'hortidaily.com',
+  'freshfruitportal.com',
+  'produceretailer.com'
+];
+
+// Priority publications for cattle/beef industry
+const CATTLE_PUBLICATIONS = [
+  'beefmagazine.com',
+  'drovers.com',
+  'cattlenetwork.com',
+  'agweb.com',
+  'progressivecattle.com',
+  'americancattlemen.com'
+];
+
+// Priority publications for North Dakota news/events
+const ND_PUBLICATIONS = [
+  'grandforksherald.com',
+  'bismarcktribune.com',
+  'inforum.com',
+  'kfyrtv.com',
+  'valleynewslive.com',
+  'minotdailynews.com'
+];
+
 const clientSearchProfiles = [
   {
     name: 'Bushwick Commission',
-    // Phase 1: Expanded context for business/marketing focus
-    contextWords: ['produce', 'fruit', 'vegetable', 'foodservice', 'distributor', 'wholesale', 'fresh', 'supplier', 'delivery', 'retailer', 'grocery', 'market'],
-    // Phase 1: Fixed 'board' to 'community board' (more specific)
+    // Dual-query: full name only, no context restrictions
+    searchTerms: 'Bushwick Commission',
+    contextWords: [],
     excludeWords: ['apartment', 'housing', 'community board', 'residential'],
-    ownDomains: ['bushwickcommission.com']
+    ownDomains: ['bushwickcommission.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'Full Tilt Marketing',
-    // Phase 1: CRITICAL FIX - Changed from general marketing to produce industry
+    // Keep both variants - unique enough
     searchTerms: 'Full Tilt Marketing OR FullTilt Marketing',
-    contextWords: ['produce', 'vegetable', 'agriculture', 'food', 'farming', 'grower', 'Vegetable of the Year', 'harvest', 'season', 'industry'],
+    contextWords: [],
     excludeWords: ['poker', 'casino', 'gambling'],
-    ownDomains: ['fulltiltmarketing.com']
+    ownDomains: ['fulltiltmarketing.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'Michigan Asparagus Advisory Board',
-    // Phase 1: Added MAAB abbreviation
+    // MAAB is unique enough to keep
     searchTerms: 'Michigan Asparagus Advisory Board OR MAAB',
-    // Phase 2: Added harvest, grower, season, festival, advisory
-    contextWords: ['asparagus', 'produce', 'agriculture', 'farming', 'Michigan', 'vegetable', 'harvest', 'grower', 'growers', 'season', 'festival', 'advisory', 'commission'],
-    // Removed 'plant' and 'garden' (too restrictive for commercial agriculture)
+    contextWords: [],
     excludeWords: ['fern', 'recipe', 'cooking'],
-    ownDomains: ['michiganasparagus.org']
+    ownDomains: ['michiganasparagus.org'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'North Carolina Sweetpotato Commission',
-    // Phase 1: Added NCSC abbreviation + variations
-    searchTerms: 'North Carolina Sweetpotato Commission OR NCSC OR "NC Sweetpotato Commission" OR "North Carolina sweet potato Commission"',
-    // Phase 2: Added sweet potato (2-word), export, trade, marketing, research
-    contextWords: ['sweetpotato', 'sweet potato', 'produce', 'agriculture', 'farming', 'grower', 'harvest', 'export', 'trade', 'marketing', 'industry', 'commission', 'research', 'Carolina', 'season'],
-    // Made excludes more specific
+    // Keep variations - they're specific enough
+    searchTerms: 'North Carolina Sweetpotato Commission OR NCSC OR "NC Sweetpotato Commission"',
+    contextWords: [],
     excludeWords: ['recipe blog', 'home cooking', 'garden center', 'Pinterest'],
-    ownDomains: ['ncsweetpotatoes.com']
+    ownDomains: ['ncsweetpotatoes.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'North Dakota 250',
-    // Phase 1: Added ND250 abbreviation
+    // State anniversary event - uses ND local news publications
+    // Note: Most mentions are PDFs from NewzGroup (unfixable with Google)
     searchTerms: 'North Dakota 250 OR ND250 OR "ND 250"',
-    // Phase 2: Added event-specific terms: logo, kickoff, mural, tourism, volunteer
-    // Removed 'grant' and 'funding' from excludes (20% of mentions contain these)
-    contextWords: ['anniversary', 'celebration', 'heritage', 'history', 'North Dakota', 'America', 'statehood', 'logo', 'kickoff', 'event', 'grant', 'mural', 'tourism', 'committee', 'commission', 'volunteer', 'community', 'legacy', '250th'],
+    contextWords: [],
     excludeWords: ['agriculture', 'farming', 'potato'],
-    ownDomains: ['northdakota250.com']
+    ownDomains: ['northdakota250.com'],
+    priorityPublications: ND_PUBLICATIONS
   },
   {
     name: 'Todd Greiner Farms',
-    // Phase 1: Added TGF abbreviation + full business name
-    searchTerms: 'Todd Greiner Farms OR TGF OR "Todd Greiner Farms Packing"',
-    // Phase 2: Added sweet corn, corn, Hart (location), vegetables, grower, packing, season
-    contextWords: ['asparagus', 'produce', 'agriculture', 'farming', 'Michigan', 'pumpkin', 'sweet corn', 'corn', 'Hart', 'vegetables', 'grower', 'packing', 'harvest', 'season'],
+    // Keep full name and packing variant, TGF is fairly unique
+    searchTerms: 'Todd Greiner Farms OR "Todd Greiner Farms Packing"',
+    contextWords: [],
     excludeWords: ['recipe', 'garden', 'landscaping', 'Christmas', 'wreath', 'home garden', 'backyard'],
-    ownDomains: ['toddgreinerfarms.com']
+    ownDomains: ['toddgreinerfarms.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'South Texas Onion Committee',
-    // Phase 1: Added STOC + product brand variations
-    searchTerms: 'South Texas Onion Committee OR STOC OR "Texas 1015" OR TX1015 OR "1015 onion"',
-    // Phase 2: Added sweet onion, grower, marketing order, TIPA, Viva Fresh, export, season
-    contextWords: ['onion', 'produce', 'agriculture', 'farming', 'Texas', '1015', 'sweet onion', 'grower', 'harvest', 'marketing order', 'TIPA', 'Viva Fresh', 'industry', 'export', 'season'],
+    // Keep all variants - product brands are specific
+    searchTerms: 'South Texas Onion Committee OR STOC OR "Texas 1015" OR TX1015',
+    contextWords: [],
     excludeWords: ['recipe', 'cooking', 'garden', 'plant', 'rings'],
-    ownDomains: ['southtexasonions.com', 'tx1015.com']
+    ownDomains: ['southtexasonions.com', 'tx1015.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'Texas Watermelon Association',
-    // Phase 1: Added TWA abbreviation
-    searchTerms: 'Texas Watermelon Association OR TWA',
-    // Phase 2: Added harvest, crop, season, industry, melon
-    // Removed 'summer' from excludes (too restrictive for watermelon coverage)
-    contextWords: ['watermelon', 'produce', 'agriculture', 'farming', 'grower', 'Texas', 'harvest', 'crop', 'season', 'industry', 'growers', 'melon'],
+    // Removed TWA (conflicts with Trans World Airlines in search results)
+    searchTerms: 'Texas Watermelon Association',
+    contextWords: [],
     excludeWords: ['recipe', 'seed', 'garden', 'plant'],
-    ownDomains: ['texaswatermelons.com']
+    ownDomains: ['texaswatermelons.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'Colombia Avocado Board',
-    // Phase 1: Added CAB abbreviation
-    searchTerms: 'Colombia Avocado Board OR CAB OR "Colombia Avocado"',
-    // Phase 2: Added trade, import, industry, grower, season
-    contextWords: ['avocado', 'produce', 'agriculture', 'export', 'Colombia', 'Hass', 'trade', 'import', 'industry', 'grower', 'harvest', 'season'],
+    // Removed CAB (too generic - cab, cabinet, etc.)
+    // Kept "Colombia Avocado" as specific variant
+    searchTerms: 'Colombia Avocado Board OR "Colombia Avocado"',
+    contextWords: [],
     excludeWords: ['recipe', 'toast', 'guacamole', 'cooking', 'health'],
-    ownDomains: ['avocadoscolombia.com']
+    ownDomains: ['avocadoscolombia.com'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'Dakota Angus',
-    // Phase 2: Added industry terms: bull, herd, genetics, breeding, sale, auction, North Dakota
-    contextWords: ['beef', 'cattle', 'angus', 'ranching', 'livestock', 'agriculture', 'bull', 'herd', 'genetics', 'breeding', 'sale', 'auction', 'North Dakota', 'ND', 'seedstock', 'purebred', 'registered'],
+    // Cattle industry - uses cattle/beef publications
+    searchTerms: 'Dakota Angus',
+    contextWords: [],
     excludeWords: ['recipe', 'restaurant', 'steakhouse', 'burger', 'menu'],
-    ownDomains: ['dakotaangusllc.com', 'ndangus.com']
+    ownDomains: ['dakotaangusllc.com', 'ndangus.com'],
+    priorityPublications: CATTLE_PUBLICATIONS
   },
   {
     name: 'Equitable Food Initiative',
-    // Dual-query approach: general search + site-restricted to priority publications
-    // Note: "EFI" abbreviation excluded from general query to avoid noise (Electronic Fuel Injection, etc.)
+    // Removed EFI abbreviation (conflicts with Electronic Fuel Injection)
     searchTerms: 'Equitable Food Initiative',
     contextWords: [],
     excludeWords: ['recipe', 'cooking', 'donation', 'charity', 'volunteer'],
     ownDomains: ['equitablefood.org'],
-    // Priority publications for site-restricted secondary query
-    priorityPublications: [
-      'thepacker.com',
-      'andnowuknow.com',
-      'theproducenews.com',
-      'perishablenews.com',
-      'freshplaza.com',
-      'bluebookservices.com',
-      'producebusiness.com',
-      'hortidaily.com',
-      'freshfruitportal.com'
-    ]
+    priorityPublications: PRODUCE_PUBLICATIONS
   },
   {
     name: 'G&R Farms',
-    // Phase 1: Added G&R abbreviation + variations
-    searchTerms: 'G&R Farms OR "G and R Farms" OR "G & R"',
-    // Phase 2: Added sweet onion, grower, harvest, crop, supplier, packer, shipper, season
-    contextWords: ['Vidalia', 'onion', 'produce', 'agriculture', 'farming', 'Georgia', 'sweet onion', 'grower', 'harvest', 'crop', 'supplier', 'packer', 'shipper', 'season'],
+    // Keep variants - they're specific enough
+    searchTerms: 'G&R Farms OR "G and R Farms"',
+    contextWords: [],
     excludeWords: ['recipe', 'cooking', 'garden', 'scholarship', 'FFA'],
-    ownDomains: ['gfvga.org']
+    ownDomains: ['gfvga.org'],
+    priorityPublications: PRODUCE_PUBLICATIONS
   }
 ];
 
