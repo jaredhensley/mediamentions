@@ -505,41 +505,6 @@ function filterResultsForClient(results, profile, client) {
     return true;
   });
 
-  // Log rejection statistics
-  if (rejectionLog.length > 0) {
-    console.log(`\n=== FILTER DIAGNOSTICS for ${client.name} ===`);
-    console.log(`Total results: ${results.length}`);
-    console.log(`Accepted: ${filtered.length}`);
-    console.log(`Rejected: ${rejectionLog.length}\n`);
-
-    // Group by rejection reason
-    const reasonCounts = {};
-    rejectionLog.forEach(r => {
-      reasonCounts[r.reason] = (reasonCounts[r.reason] || 0) + 1;
-    });
-
-    console.log('Rejection reasons:');
-    Object.entries(reasonCounts)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([reason, count]) => {
-        console.log(`  ${reason}: ${count} (${Math.round(count / rejectionLog.length * 100)}%)`);
-      });
-
-    // Show how many had name in snippet but not title
-    const nameInSnippetNotTitle = rejectionLog.filter(r => r.nameInSnippet && !r.nameInTitle);
-    if (nameInSnippetNotTitle.length > 0) {
-      console.log(`\n⚠️  ${nameInSnippetNotTitle.length} results had name in SNIPPET but NOT in title`);
-      console.log('Examples:');
-      nameInSnippetNotTitle.slice(0, 3).forEach(r => {
-        console.log(`\n  Title: ${r.title}`);
-        console.log(`  Snippet: ${r.snippet.substring(0, 150)}...`);
-        console.log(`  URL: ${r.url}`);
-      });
-    }
-
-    console.log('\n');
-  }
-
   return filtered;
 }
 

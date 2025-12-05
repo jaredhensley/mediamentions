@@ -28,7 +28,6 @@ function buildQueries(client, profile, activePressReleases) {
       label: 'priority-publications'
     };
     queries.push(siteQuery);
-    console.log(`[dual-query] Added site-restricted query for ${client.name} with ${profile.priorityPublications.length} priority publications`);
   }
 
   // Press release queries
@@ -59,12 +58,9 @@ async function runProvider(providerName, searchRequest, jobLog) {
   }
   const query = typeof searchRequest === 'string' ? searchRequest : searchRequest.query;
   const label = typeof searchRequest === 'object' ? searchRequest.label : null;
-  const logLabel = label ? `${label} | ${query}` : query;
   try {
-    console.log(`[providers] ${providerName} → searching for "${logLabel}"`);
     const results = await provider(searchRequest, { maxResults: searchConfig.maxResultsPerProvider });
     jobLog.providerRuns.push({ provider: providerName, query, label, status: 'success', results: results.length });
-    console.log(`[providers] ${providerName} ✓ returned ${results.length} results for "${logLabel}"`);
     return results;
   } catch (err) {
     console.warn(`[providers] ${providerName} ✗ failed for "${query}": ${err.message}`);

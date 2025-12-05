@@ -11,11 +11,9 @@ function initWebSocket(server) {
   wss = new WebSocketServer({ server });
 
   wss.on('connection', (ws) => {
-    console.log('[websocket] Client connected');
     clients.add(ws);
 
     ws.on('close', () => {
-      console.log('[websocket] Client disconnected');
       clients.delete(ws);
     });
 
