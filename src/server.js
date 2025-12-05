@@ -5,7 +5,8 @@ const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 const { scheduleDailySearch } = require('./services/scheduler');
 const { getStatus: getVerificationStatus } = require('./services/verificationStatus');
 const { initWebSocket } = require('./services/websocket');
-const { validateConfig } = require('./config');
+const { validateConfig, config } = require('./config');
+const { requireApiKey } = require('./middleware/auth');
 
 // Validate configuration before starting
 validateConfig();
@@ -854,24 +855,40 @@ const routes = [
 ];
 
 const server = http.createServer(async (req, res) => {
+  const corsOrigin = config.server.corsOrigin;
+
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
     });
     res.end();
     return;
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
 
   const matchedRoute = routes.find((route) => route.method === req.method && matchRoute(route.pattern, req.url.split('?')[0]));
   if (!matchedRoute) {
     sendJson(res, 404, { error: 'Route not found' });
     return;
   }
+
+  // Apply authentication middleware
+  // Uses callback pattern since requireApiKey expects (req, res, next)
+  const authPassed = await new Promise((resolve) => {
+    requireApiKey(req, res, () => resolve(true));
+    // If auth fails, requireApiKey sends 401 response and doesn't call next
+    // Give it a moment to check - if response was sent, resolve false
+    setImmediate(() => {
+      if (res.writableEnded) resolve(false);
+    });
+  });
+
+  if (!authPassed) return;
 
   const params = matchRoute(matchedRoute.pattern, req.url.split('?')[0]);
   try {
