@@ -5,18 +5,19 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { fetchPublications, createPublication, updatePublication, deletePublication } from '../api';
 import { Publication } from '../data';
 import PublicationFormModal, { PublicationFormData } from '../components/PublicationFormModal';
+import { useToast } from '../hooks/useToast';
 
 export default function PublicationsPage() {
   const [publications, setPublications] = useState<Publication[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { showError } = useToast();
 
   useEffect(() => {
     fetchPublications()
       .then(setPublications)
-      .catch((err) => setError(err.message));
-  }, []);
+      .catch((err) => showError(err.message));
+  }, [showError]);
 
   const editingPublication = publications.find((p) => p.id === editingId);
 
@@ -32,7 +33,7 @@ export default function PublicationsPage() {
       setModalOpen(false);
       setEditingId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save publication');
+      showError(err instanceof Error ? err.message : 'Failed to save publication');
     }
   };
 
@@ -45,7 +46,7 @@ export default function PublicationsPage() {
       await deletePublication(id);
       setPublications((prev) => prev.filter((pub) => pub.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete publication');
+      showError(err instanceof Error ? err.message : 'Failed to delete publication');
     }
   };
 
@@ -63,8 +64,6 @@ export default function PublicationsPage() {
           New publication
         </Button>
       </Stack>
-
-      {error && <Typography color="error">{error}</Typography>}
 
       <Card>
         <CardContent>

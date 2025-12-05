@@ -29,6 +29,7 @@ import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
 import { formatDisplayDate } from '../utils/format';
+import { useToast } from '../hooks/useToast';
 
 export default function ClientsPage() {
   const [clientList, setClientList] = useState<Client[]>([]);
@@ -37,29 +38,29 @@ export default function ClientsPage() {
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
   const [publicationList, setPublicationList] = useState<Publication[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState({ name: '', notes: '' });
   const [searchParams, setSearchParams] = useSearchParams();
+  const { showError } = useToast();
 
   useEffect(() => {
     fetchClients()
       .then((data) => {
         setClientList(data);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => showError(err.message));
     fetchMentions()
       .then(setMentions)
-      .catch((err) => setError(err.message));
+      .catch((err) => showError(err.message));
     fetchPressReleases()
       .then(setPressReleases)
-      .catch((err) => setError(err.message));
+      .catch((err) => showError(err.message));
     fetchPublications()
       .then(setPublicationList)
-      .catch((err) => setError(err.message));
-  }, []);
+      .catch((err) => showError(err.message));
+  }, [showError]);
 
   useEffect(() => {
     if (!clientList.length) return;
@@ -144,7 +145,7 @@ export default function ClientsPage() {
       await deleteMention(id);
       setMentions((prev) => prev.filter((mention) => mention.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete mention');
+      showError(err instanceof Error ? err.message : 'Failed to delete mention');
     }
   };
 
@@ -167,7 +168,6 @@ export default function ClientsPage() {
   return (
     <Stack spacing={3}>
       <Typography variant="h4">Clients</Typography>
-      {error && <Typography color="error">{error}</Typography>}
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <Card>

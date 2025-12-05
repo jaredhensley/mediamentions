@@ -3,6 +3,7 @@ import { Box, Button, Card, CardContent, Chip, Grid, List, ListItem, ListItemTex
 import { fetchClients, fetchMentions, fetchPressReleases } from '../api';
 import { Client, Mention, PressRelease } from '../data';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
+import { useToast } from '../hooks/useToast';
 
 export default function PressReleasesPage() {
   const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
@@ -10,6 +11,7 @@ export default function PressReleasesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [clientsList, setClientsList] = useState<Client[]>([]);
   const [mentionsList, setMentionsList] = useState<Mention[]>([]);
+  const { showError } = useToast();
 
   useEffect(() => {
     fetchPressReleases()
@@ -17,14 +19,14 @@ export default function PressReleasesPage() {
         setPressReleases(data);
         setSelectedId(data[0]?.id || '');
       })
-      .catch(() => {});
+      .catch((err) => showError(err.message));
     fetchClients()
       .then(setClientsList)
-      .catch(() => {});
+      .catch((err) => showError(err.message));
     fetchMentions()
       .then(setMentionsList)
-      .catch(() => {});
-  }, []);
+      .catch((err) => showError(err.message));
+  }, [showError]);
 
   const selected = pressReleases.find((pr) => pr.id === selectedId);
   const relatedMentions = mentionsList.filter((mention) => mention.pressReleaseId === selectedId);

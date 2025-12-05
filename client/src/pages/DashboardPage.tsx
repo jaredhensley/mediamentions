@@ -22,17 +22,18 @@ import { fetchClients, fetchMentions, deleteMention } from '../api';
 import { Client, Mention } from '../data';
 import { formatDisplayDate, formatRelativeTime } from '../utils/format';
 import { useWebSocket, WebSocketMessage } from '../hooks/useWebSocket';
+import { useToast } from '../hooks/useToast';
 
 type DateFilter = '1d' | '3d' | '1w' | '30d' | 'all' | 'custom';
 
 export default function DashboardPage() {
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const navigate = useNavigate();
+  const { showError } = useToast();
 
   // Handle WebSocket messages for real-time updates
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
@@ -63,11 +64,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchMentions()
       .then(setMentions)
-      .catch((err) => setError(err.message));
+      .catch((err) => showError(err.message));
     fetchClients()
       .then(setClients)
-      .catch((err) => setError(err.message));
-  }, []);
+      .catch((err) => showError(err.message));
+  }, [showError]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -134,7 +135,7 @@ export default function DashboardPage() {
       await deleteMention(id);
       setMentions((prev) => prev.filter((mention) => mention.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete mention');
+      showError(err instanceof Error ? err.message : 'Failed to delete mention');
     }
   };
 
@@ -233,7 +234,6 @@ export default function DashboardPage() {
               )}
             </Box>
 
-            {error && <Typography color="error">{error}</Typography>}
             {filteredMentions.length === 0 ? (
               <Typography color="text.secondary">
                 {mentions.length === 0 ? 'No mentions recorded yet.' : 'No mentions in selected date range.'}
