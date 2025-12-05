@@ -26,6 +26,22 @@ function getNameVariations(name) {
     variations.push(name.toLowerCase().replace('full tilt', 'fulltilt'));
   }
 
+  // Handle "Colombia Avocado Board" vs "Avocados from Colombia" (brand name)
+  if (name.toLowerCase().includes('colombia avocado')) {
+    variations.push('avocados from colombia');
+  }
+
+  // Handle "South Texas Onion Committee" vs "Texas 1015" (famous onion variety)
+  if (name.toLowerCase().includes('south texas onion')) {
+    variations.push('texas 1015');
+    variations.push('1015 onion');
+  }
+
+  // Handle "Michigan Asparagus Advisory Board" vs "MAAB" abbreviation
+  if (name.toLowerCase().includes('michigan asparagus')) {
+    variations.push('maab');
+  }
+
   return variations;
 }
 
