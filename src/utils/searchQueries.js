@@ -36,7 +36,9 @@ function buildSearchRequest(client, profile, options = {}) {
   const exactTerms = client.name.trim();
   const extraPhrases = (options.extraPhrases || []).filter(Boolean);
 
-  const parts = [quoteTerm(searchTerm)];
+  // Don't quote searchTerms that contain OR - they're pre-formatted boolean queries
+  const formattedSearchTerm = searchTerm.includes(' OR ') ? searchTerm : quoteTerm(searchTerm);
+  const parts = [formattedSearchTerm];
   if (extraPhrases.length) {
     parts.push(...extraPhrases.map(quoteTerm));
   }

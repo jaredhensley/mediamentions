@@ -21,6 +21,11 @@ function getNameVariations(name) {
     variations.push(name.toLowerCase().replace('colombia', 'colombian'));
   }
 
+  // Handle "Full Tilt" vs "FullTilt" (brand sometimes writes as one word)
+  if (name.toLowerCase().includes('full tilt')) {
+    variations.push(name.toLowerCase().replace('full tilt', 'fulltilt'));
+  }
+
   return variations;
 }
 
@@ -133,6 +138,7 @@ function hasEditorialLanguage(snippet) {
     /\bintroduced?\b/,
     /\breleased?\b/,
     /\bunveiled?\b/,
+    /\breveals?\b/,
     /\bis\s+(?:a\s+)?leading\b/,
     /\badvocate(?:s|d)?\s+for\b/,
     /\bwork(?:s|ed|ing)\s+(?:with|on|to)\b/,
