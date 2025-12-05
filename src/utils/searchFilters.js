@@ -1,4 +1,5 @@
 const { extractDomain } = require("./mentions");
+const { config } = require("../config");
 
 /**
  * Generate common variations of a client name for fuzzy matching
@@ -279,20 +280,9 @@ function isCategoryPage(url) {
 /**
  * Social media domains to exclude from all results
  * Social posts/comments are not editorial media mentions
+ * Configured in src/config.js (filters.socialMediaDomains)
  */
-const SOCIAL_MEDIA_DOMAINS = [
-  'facebook.com',
-  'twitter.com',
-  'x.com',
-  'instagram.com',
-  'linkedin.com',
-  'reddit.com',
-  'tiktok.com',
-  'youtube.com',
-  'pinterest.com',
-  'snapchat.com',
-  'threads.net'
-];
+const SOCIAL_MEDIA_DOMAINS = config.filters.socialMediaDomains;
 
 /**
  * Score and filter search results based on client profile
@@ -323,9 +313,10 @@ function filterResultsForClient(results, profile, client) {
 
   const rejectionLog = [];
 
-  // Calculate the 180-day threshold for article dates
+  // Calculate the threshold for article dates (configurable, default 180 days)
   const now = new Date();
-  const dateThreshold = new Date(now.getTime() - (180 * 24 * 60 * 60 * 1000));
+  const articleAgeDays = config.filters.articleAgeDays;
+  const dateThreshold = new Date(now.getTime() - (articleAgeDays * 24 * 60 * 60 * 1000));
 
   const filtered = results.filter((result) => {
     const title = result.title || "";

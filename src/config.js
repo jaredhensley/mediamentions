@@ -52,6 +52,36 @@ const config = {
       : Infinity,
     mentionStatus: 'new'
   },
+  filters: {
+    // Maximum age of articles to include (in days)
+    articleAgeDays: Number(process.env.ARTICLE_AGE_DAYS) || 180,
+    // Social media domains to exclude from all results
+    socialMediaDomains: [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'instagram.com',
+      'linkedin.com',
+      'reddit.com',
+      'tiktok.com',
+      'youtube.com',
+      'pinterest.com',
+      'snapchat.com',
+      'threads.net'
+    ]
+  },
+  verification: {
+    // Rate limit between verification requests (ms)
+    rateLimitMs: Number(process.env.VERIFY_RATE_LIMIT_MS) || 500,
+    // Browser page load timeout (ms)
+    browserTimeoutMs: Number(process.env.VERIFY_BROWSER_TIMEOUT_MS) || 20000,
+    // Fetch request timeout (ms)
+    fetchTimeoutMs: Number(process.env.VERIFY_FETCH_TIMEOUT_MS) || 10000,
+    // Wait time for dynamic content after page load (ms)
+    dynamicContentDelayMs: Number(process.env.VERIFY_DYNAMIC_DELAY_MS) || 2000,
+    // Maximum retry attempts for failed verifications
+    maxRetries: Number(process.env.VERIFY_MAX_RETRIES) || 2
+  },
   logging: {
     level: process.env.LOG_LEVEL || 'info'
   }

@@ -3,6 +3,7 @@
 const { runQuery, runExecute } = require('../db');
 const puppeteer = require('puppeteer');
 const { broadcastMentionVerified, broadcastVerificationStatus } = require('../services/websocket');
+const { config } = require('../config');
 
 /**
  * Check if client name appears in text content
@@ -44,14 +45,14 @@ async function verifyWithBrowser(mention, browser) {
     await page.setViewport({ width: 1920, height: 1080 });
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
 
-    // Navigate with timeout
+    // Navigate with timeout (configurable)
     await page.goto(link, {
       waitUntil: 'networkidle2',
-      timeout: 20000
+      timeout: config.verification.browserTimeoutMs
     });
 
-    // Wait a bit for dynamic content to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait a bit for dynamic content to load (configurable)
+    await new Promise(resolve => setTimeout(resolve, config.verification.dynamicContentDelayMs));
 
     // Extract text content
     const textContent = await page.evaluate(() => {
@@ -103,7 +104,7 @@ async function verifyMention(mention, browser = null) {
         'Pragma': 'no-cache'
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(10000) // 10 second timeout
+      signal: AbortSignal.timeout(config.verification.fetchTimeoutMs)
     });
 
     // If 403, try with browser
@@ -163,7 +164,7 @@ async function verifyMention(mention, browser = null) {
  * @returns {Object} - Verification result
  */
 async function verifyMentionWithRetry(mention, browser) {
-  const maxRetries = 2;
+  const maxRetries = config.verification.maxRetries;
   let lastResult = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -264,9 +265,9 @@ async function main() {
         console.log(` ✗ FAILED (${result.reason}${result.error ? ': ' + result.error : ''})`);
       }
 
-      // Rate limiting: 500ms between requests
+      // Rate limiting between requests (configurable)
       if (i < mentions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, config.verification.rateLimitMs));
       }
     }
   } finally {
@@ -387,9 +388,9 @@ async function verifyAllMentions({ silent = false } = {}) {
         failed: results.failed
       });
 
-      // Rate limiting: 500ms between requests
+      // Rate limiting between requests (configurable)
       if (i < mentions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, config.verification.rateLimitMs));
       }
     }
   } finally {
