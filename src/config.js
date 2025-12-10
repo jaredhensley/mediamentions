@@ -80,7 +80,21 @@ const config = {
     // Wait time for dynamic content after page load (ms)
     dynamicContentDelayMs: Number(process.env.VERIFY_DYNAMIC_DELAY_MS) || 2000,
     // Maximum retry attempts for failed verifications
-    maxRetries: Number(process.env.VERIFY_MAX_RETRIES) || 2
+    maxRetries: Number(process.env.VERIFY_MAX_RETRIES) || 2,
+    // Delay between retries (ms)
+    retryDelayMs: Number(process.env.VERIFY_RETRY_DELAY_MS) || 1000,
+    // Minimum content length to consider valid (chars) - shorter is likely a block page
+    minContentLength: Number(process.env.VERIFY_MIN_CONTENT_LENGTH) || 1000,
+    // Number of concurrent verification requests
+    concurrentRequests: Number(process.env.VERIFY_CONCURRENT_REQUESTS) || 5,
+    // HTTP status codes that should trigger browser fallback
+    browserFallbackStatuses: [403, 503, 520, 521, 522, 523, 524],
+    // Client name variations for fuzzy matching
+    clientNameVariations: [
+      { from: 'sweetpotato', to: 'sweet potato' },
+      { from: 'sweet potato', to: 'sweetpotato' },
+      { from: 'colombia', to: 'colombian' }
+    ]
   },
   logging: {
     level: process.env.LOG_LEVEL || 'info'

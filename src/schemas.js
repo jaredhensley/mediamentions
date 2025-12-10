@@ -84,7 +84,8 @@ const updateMediaMentionSchema = z.object({
   status: statusEnum,
   clientId: positiveInt.optional(),
   publicationId: positiveInt.optional(),
-  pressReleaseId: positiveInt.optional().nullable()
+  pressReleaseId: positiveInt.optional().nullable(),
+  verified: z.number().int().min(0).max(1).optional()
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided'
 });

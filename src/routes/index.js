@@ -386,6 +386,7 @@ async function updateMediaMention(req, res, params) {
     'clientId',
     'publicationId',
     'pressReleaseId',
+    'verified',
   ]);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
