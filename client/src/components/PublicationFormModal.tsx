@@ -11,7 +11,7 @@ interface Props {
   initial?: PublicationFormData;
 }
 
-const defaultState: PublicationFormData = { name: '', website: '', clientId: null };
+const defaultState: PublicationFormData = { name: '', website: '' };
 
 export default function PublicationFormModal({ open, onClose, onSave, initial }: Props) {
   const [formState, setFormState] = useState<PublicationFormData>(defaultState);
@@ -44,18 +44,6 @@ export default function PublicationFormModal({ open, onClose, onSave, initial }:
             label="Website"
             value={formState.website ?? ''}
             onChange={(e) => setFormState((prev) => ({ ...prev, website: e.target.value }))}
-            fullWidth
-          />
-          <TextField
-            label="Client ID"
-            type="number"
-            value={formState.clientId ?? ''}
-            onChange={(e) =>
-              setFormState((prev) => ({
-                ...prev,
-                clientId: e.target.value === '' ? null : Number(e.target.value),
-              }))
-            }
             fullWidth
           />
         </Stack>

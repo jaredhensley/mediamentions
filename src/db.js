@@ -108,17 +108,6 @@ function initializeDatabase() {
     FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE SET NULL
   );
 
-  CREATE TABLE IF NOT EXISTS pressReleases (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    content TEXT,
-    releaseDate TEXT NOT NULL,
-    clientId INTEGER NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE CASCADE
-  );
-
   CREATE TABLE IF NOT EXISTS mediaMentions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -131,12 +120,10 @@ function initializeDatabase() {
     status TEXT,
     clientId INTEGER NOT NULL,
     publicationId INTEGER NOT NULL,
-    pressReleaseId INTEGER,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE CASCADE,
-    FOREIGN KEY (publicationId) REFERENCES publications(id) ON DELETE CASCADE,
-    FOREIGN KEY (pressReleaseId) REFERENCES pressReleases(id) ON DELETE SET NULL
+    FOREIGN KEY (publicationId) REFERENCES publications(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS feedbackSummaries (
@@ -178,8 +165,6 @@ function initializeDatabase() {
     'CREATE INDEX IF NOT EXISTS idx_mentions_date ON mediaMentions(mentionDate);',
     'CREATE INDEX IF NOT EXISTS idx_mentions_publication ON mediaMentions(publicationId);',
     'CREATE INDEX IF NOT EXISTS idx_mentions_link ON mediaMentions(link);',
-    'CREATE INDEX IF NOT EXISTS idx_mentions_press_release ON mediaMentions(pressReleaseId);',
-    'CREATE INDEX IF NOT EXISTS idx_press_client ON pressReleases(clientId);',
     'CREATE INDEX IF NOT EXISTS idx_publications_website ON publications(website);',
     'CREATE INDEX IF NOT EXISTS idx_feedback_client ON feedbackSummaries(clientId);',
     'CREATE INDEX IF NOT EXISTS idx_search_jobs_client ON searchJobs(clientId);',

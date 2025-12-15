@@ -1,4 +1,4 @@
-import { Client, Mention, PressRelease, Publication } from './data';
+import { Client, Mention, Publication } from './data';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -101,31 +101,6 @@ export function updatePublication(id: number, publication: Partial<Publication>)
 
 export function deletePublication(id: number): Promise<void> {
   return fetchJson(`/publications/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-// Press Releases
-export function fetchPressReleases(): Promise<PressRelease[]> {
-  return fetchJson('/press-releases');
-}
-
-export function createPressRelease(pressRelease: Omit<PressRelease, 'id'>): Promise<PressRelease> {
-  return fetchJson('/press-releases', {
-    method: 'POST',
-    body: JSON.stringify(pressRelease),
-  });
-}
-
-export function updatePressRelease(id: number, pressRelease: Partial<PressRelease>): Promise<PressRelease> {
-  return fetchJson(`/press-releases/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(pressRelease),
-  });
-}
-
-export function deletePressRelease(id: number): Promise<void> {
-  return fetchJson(`/press-releases/${id}`, {
     method: 'DELETE',
   });
 }

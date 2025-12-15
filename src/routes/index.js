@@ -12,8 +12,6 @@ const {
   updateClientSchema,
   createPublicationSchema,
   updatePublicationSchema,
-  createPressReleaseSchema,
-  updatePressReleaseSchema,
   createMediaMentionSchema,
   updateMediaMentionSchema,
   createFeedbackSummarySchema,
@@ -126,8 +124,8 @@ async function createPublication(req, res) {
     }
     const now = new Date().toISOString();
     const [publication] = runQuery(
-      'INSERT INTO publications (name, website, clientId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p3) RETURNING *;',
-      [validation.data.name, validation.data.website || null, validation.data.clientId || null, now],
+      'INSERT INTO publications (name, website, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
+      [validation.data.name, validation.data.website || null, now],
     );
     sendJson(res, 201, publication);
   } catch (error) {
@@ -161,7 +159,7 @@ async function updatePublication(req, res, params) {
     sendJson(res, 400, { error: validation.error });
     return;
   }
-  const { keys, values } = buildUpdateFields(validation.data, ['name', 'website', 'clientId']);
+  const { keys, values } = buildUpdateFields(validation.data, ['name', 'website']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
   values.push(idValidation.data.id);
@@ -192,90 +190,6 @@ async function deletePublication(_req, res, params) {
 }
 
 // ============================================================================
-// PRESS RELEASE ROUTES
-// ============================================================================
-
-async function listPressReleases(_req, res) {
-  const releases = runQuery('SELECT * FROM pressReleases ORDER BY id;');
-  sendJson(res, 200, releases);
-}
-
-async function createPressRelease(req, res) {
-  try {
-    const body = await parseJsonBody(req);
-    const validation = validate(createPressReleaseSchema, body);
-    if (!validation.success) {
-      sendJson(res, 400, { error: validation.error });
-      return;
-    }
-    const now = new Date().toISOString();
-    const [pressRelease] = runQuery(
-      'INSERT INTO pressReleases (title, content, releaseDate, clientId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p4) RETURNING *;',
-      [validation.data.title, validation.data.content || '', validation.data.releaseDate, validation.data.clientId, now],
-    );
-    sendJson(res, 201, pressRelease);
-  } catch (error) {
-    sendJson(res, 400, { error: error.message });
-  }
-}
-
-async function getPressRelease(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [pressRelease] = runQuery('SELECT * FROM pressReleases WHERE id=@p0;', [validation.data.id]);
-  if (!pressRelease) {
-    sendJson(res, 404, { error: 'Press release not found' });
-    return;
-  }
-  sendJson(res, 200, pressRelease);
-}
-
-async function updatePressRelease(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updatePressReleaseSchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, ['title', 'content', 'releaseDate', 'clientId']);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [pressRelease] = runQuery(
-    `UPDATE pressReleases SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!pressRelease) {
-    sendJson(res, 404, { error: 'Press release not found' });
-    return;
-  }
-  sendJson(res, 200, pressRelease);
-}
-
-async function deletePressRelease(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [pressRelease] = runQuery('DELETE FROM pressReleases WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!pressRelease) {
-    sendJson(res, 404, { error: 'Press release not found' });
-    return;
-  }
-  sendJson(res, 200, pressRelease);
-}
-
-// ============================================================================
 // MEDIA MENTION ROUTES
 // ============================================================================
 
@@ -290,10 +204,6 @@ async function listMediaMentions(req, res) {
   if (url.searchParams.get('publicationId')) {
     params.push(Number(url.searchParams.get('publicationId')));
     filters.push(`publicationId=@p${params.length - 1}`);
-  }
-  if (url.searchParams.get('pressReleaseId')) {
-    params.push(Number(url.searchParams.get('pressReleaseId')));
-    filters.push(`pressReleaseId=@p${params.length - 1}`);
   }
   if (url.searchParams.get('startDate')) {
     params.push(url.searchParams.get('startDate'));
@@ -326,8 +236,8 @@ async function createMediaMention(req, res) {
     const d = validation.data;
     const now = new Date().toISOString();
     const [mention] = runQuery(
-      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt)
-       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;`,
+      `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, createdAt, updatedAt)
+       VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p10) RETURNING *;`,
       [
         d.title,
         d.subjectMatter || '',
@@ -339,7 +249,6 @@ async function createMediaMention(req, res) {
         d.status || 'new',
         d.clientId,
         d.publicationId,
-        d.pressReleaseId || null,
         now,
       ],
     );
@@ -386,7 +295,6 @@ async function updateMediaMention(req, res, params) {
     'status',
     'clientId',
     'publicationId',
-    'pressReleaseId',
     'verified',
   ]);
   keys.push('updatedAt');
@@ -884,12 +792,6 @@ const routes = [
   { method: 'GET', pattern: '/publications/:id', handler: getPublication },
   { method: 'PUT', pattern: '/publications/:id', handler: updatePublication },
   { method: 'DELETE', pattern: '/publications/:id', handler: deletePublication },
-
-  { method: 'GET', pattern: '/press-releases', handler: listPressReleases },
-  { method: 'POST', pattern: '/press-releases', handler: createPressRelease },
-  { method: 'GET', pattern: '/press-releases/:id', handler: getPressRelease },
-  { method: 'PUT', pattern: '/press-releases/:id', handler: updatePressRelease },
-  { method: 'DELETE', pattern: '/press-releases/:id', handler: deletePressRelease },
 
   { method: 'GET', pattern: '/media-mentions', handler: listMediaMentions },
   { method: 'POST', pattern: '/media-mentions', handler: createMediaMention },

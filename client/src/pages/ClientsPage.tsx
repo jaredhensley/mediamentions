@@ -6,14 +6,11 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   Grid,
   IconButton,
   MenuItem,
   Select,
   Stack,
-  Tab,
-  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -26,10 +23,9 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
 import { useSearchParams } from 'react-router-dom';
-import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention, exportClientMentions, updateClient } from '../api';
-import { Client, Mention, PressRelease, Publication } from '../data';
+import { fetchClients, fetchMentions, fetchPublications, deleteMention, exportClientMentions, updateClient, createClient, deleteClient } from '../api';
+import { Client, Mention, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
-import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
 import RssFeedModal from '../components/RssFeedModal';
 import { formatDisplayDate } from '../utils/format';
 import { useToast } from '../hooks/useToast';
@@ -37,13 +33,10 @@ import { useToast } from '../hooks/useToast';
 export default function ClientsPage() {
   const [clientList, setClientList] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<number | ''>('');
-  const [tab, setTab] = useState<'press' | 'mentions'>('mentions');
   const [mentions, setMentions] = useState<Mention[]>([]);
-  const [pressReleases, setPressReleases] = useState<PressRelease[]>([]);
   const [publicationList, setPublicationList] = useState<Publication[]>([]);
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
-  const [pressModalOpen, setPressModalOpen] = useState(false);
   const [rssModalOpen, setRssModalOpen] = useState(false);
   const [rssModalClient, setRssModalClient] = useState<Client | null>(null);
   const [clientForm, setClientForm] = useState({ name: '', notes: '' });
@@ -58,9 +51,6 @@ export default function ClientsPage() {
       .catch((err) => showError(err.message));
     fetchMentions()
       .then(setMentions)
-      .catch((err) => showError(err.message));
-    fetchPressReleases()
-      .then(setPressReleases)
       .catch((err) => showError(err.message));
     fetchPublications()
       .then(setPublicationList)
@@ -86,11 +76,6 @@ export default function ClientsPage() {
   }, [clientList, searchParams, selectedClientId, setSearchParams]);
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
-
-  const clientPressReleases = useMemo(
-    () => pressReleases.filter((pr) => pr.clientId === selectedClientId),
-    [pressReleases, selectedClientId],
-  );
 
   const clientMentions = useMemo(
     () =>
@@ -119,26 +104,53 @@ export default function ClientsPage() {
     setMentions((prev) => [...prev, { ...data, id: prev.length + 1 }]);
   };
 
-  const handlePressSave = (data: PressReleaseFormData) => {
-    setPressReleases((prev) => [...prev, { ...data, id: prev.length + 1 }]);
-  };
-
-  const handleClientSave = () => {
+  const handleClientSave = async () => {
     const trimmedName = clientForm.name.trim();
     if (!trimmedName) {
       return;
     }
 
-    const nextId = clientList.length ? Math.max(...clientList.map((c) => c.id)) + 1 : 1;
-    const newClient = {
-      id: nextId,
-      name: trimmedName,
-      notes: clientForm.notes.trim(),
-    };
+    try {
+      const newClient = await createClient({
+        name: trimmedName,
+        contactEmail: '',
+        notes: clientForm.notes.trim(),
+      });
+      setClientList((prev) => [...prev, newClient]);
+      setClientForm({ name: '', notes: '' });
+      setSelectedClientId(newClient.id);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to create client');
+    }
+  };
 
-    setClientList((prev) => [...prev, newClient]);
-    setClientForm({ name: '', notes: '' });
-    setSelectedClientId(newClient.id);
+  const handleDeleteClient = async () => {
+    if (!selectedClientId || !selectedClient) return;
+
+    const mentionCount = mentionCounts[selectedClientId] || 0;
+    const message = mentionCount > 0
+      ? `Are you sure you want to delete "${selectedClient.name}"? This will also delete ${mentionCount} mention(s).`
+      : `Are you sure you want to delete "${selectedClient.name}"?`;
+
+    if (!confirm(message)) {
+      return;
+    }
+
+    try {
+      await deleteClient(selectedClientId);
+      setClientList((prev) => prev.filter((c) => c.id !== selectedClientId));
+      setMentions((prev) => prev.filter((m) => m.clientId !== selectedClientId));
+      const remaining = clientList.filter((c) => c.id !== selectedClientId);
+      if (remaining.length > 0) {
+        setSelectedClientId(remaining[0].id);
+        setSearchParams({ clientId: String(remaining[0].id) }, { replace: true });
+      } else {
+        setSelectedClientId('');
+        setSearchParams({}, { replace: true });
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete client');
+    }
   };
 
   const handleDeleteMention = async (id: number) => {
@@ -255,7 +267,7 @@ export default function ClientsPage() {
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <Box>
                   <Typography variant="h6">{selectedClient?.name}</Typography>
                   <Typography color="text.secondary">{selectedClient?.notes}</Typography>
@@ -264,20 +276,14 @@ export default function ClientsPage() {
                   <Button variant="outlined" onClick={() => setMentionModalOpen(true)}>
                     Add mention
                   </Button>
-                  <Button variant="contained" onClick={() => setPressModalOpen(true)}>
-                    Add press release
+                  <Button variant="outlined" color="error" onClick={handleDeleteClient}>
+                    Delete client
                   </Button>
                 </Stack>
               </Stack>
 
-              <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={{ mt: 2 }}>
-                <Tab value="mentions" label="Mentions" />
-                <Tab value="press" label="Press releases" />
-              </Tabs>
-
-              <Divider sx={{ my: 2 }} />
-
-              {tab === 'mentions' && (
+              <Typography variant="subtitle1" sx={{ mb: 2 }}>Mentions</Typography>
+              {selectedClient && (
                 <Stack spacing={2}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <Select
@@ -335,23 +341,6 @@ export default function ClientsPage() {
                   {clientMentions.length === 0 && <Typography color="text.secondary">No mentions match the filters.</Typography>}
                 </Stack>
               )}
-
-              {tab === 'press' && (
-                <Stack spacing={2}>
-                  {clientPressReleases.map((pr) => (
-                    <Card key={pr.id} variant="outlined">
-                      <CardContent>
-                        <Typography variant="subtitle1">{pr.title}</Typography>
-                        <Typography color="text.secondary">{pr.releaseDate}</Typography>
-                        <Typography sx={{ mt: 1 }}>{pr.content}</Typography>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {clientPressReleases.length === 0 && (
-                    <Typography color="text.secondary">No press releases yet.</Typography>
-                  )}
-                </Stack>
-              )}
             </CardContent>
           </Card>
         </Grid>
@@ -362,12 +351,6 @@ export default function ClientsPage() {
         onClose={() => setMentionModalOpen(false)}
         onSave={handleMentionSave}
         publicationOptions={publicationList}
-      />
-      <PressReleaseFormModal
-        open={pressModalOpen}
-        onClose={() => setPressModalOpen(false)}
-        onSave={handlePressSave}
-        clients={clientList}
       />
       <RssFeedModal
         open={rssModalOpen}

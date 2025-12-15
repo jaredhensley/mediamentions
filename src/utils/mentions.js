@@ -12,8 +12,7 @@ function normalizeResult(result, client) {
     clientName: client.name,
     source,
     sentiment,
-    normalizedUrl: result.url.toLowerCase(),
-    matchedPressReleaseId: null
+    normalizedUrl: result.url.toLowerCase()
   };
 }
 
@@ -35,20 +34,6 @@ function dedupeMentions(results) {
     seen.add(key);
     return true;
   });
-}
-
-function associatePressRelease(result, pressReleases) {
-  for (const release of pressReleases) {
-    const matchesTitle = result.title.toLowerCase().includes(release.title.toLowerCase());
-    const matchesKeyword = release.keywords.some((keyword) =>
-      result.title.toLowerCase().includes(keyword.toLowerCase()) ||
-      result.snippet.toLowerCase().includes(keyword.toLowerCase())
-    );
-    if (matchesTitle || matchesKeyword) {
-      return release.id;
-    }
-  }
-  return null;
 }
 
 function recordMentions(results, status) {
@@ -103,7 +88,7 @@ function recordMentions(results, status) {
 
     const cleanedSnippet = cleanSnippet(result.snippet);
     const [mention] = runQuery(
-      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, pressReleaseId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;',
+      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p10) RETURNING *;',
       [
         result.title,
         cleanedSnippet || status || 'Mention',
@@ -115,7 +100,6 @@ function recordMentions(results, status) {
         status,
         result.clientId,
         publicationId,
-        result.matchedPressReleaseId || null,
         now
       ]
     );
@@ -274,7 +258,6 @@ function analyzeSentiment(title, snippet) {
 module.exports = {
   normalizeResult,
   dedupeMentions,
-  associatePressRelease,
   recordMentions,
   extractDomain,
   cleanSnippet

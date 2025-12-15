@@ -34,7 +34,6 @@ export default function MentionFormModal({ open, onClose, onSave, initial, publi
       status: 'new',
       subjectMatter: '',
       clientId: 0,
-      pressReleaseId: null,
       link: '',
       reMentionDate: null,
     },
@@ -122,12 +121,6 @@ export default function MentionFormModal({ open, onClose, onSave, initial, publi
             label="Client ID (optional)"
             value={formState.clientId || ''}
             onChange={(e) => handleChange('clientId', Number(e.target.value) || 0)}
-            fullWidth
-          />
-          <TextField
-            label="Press Release ID (optional)"
-            value={formState.pressReleaseId || ''}
-            onChange={(e) => handleChange('pressReleaseId', Number(e.target.value) || null)}
             fullWidth
           />
         </Stack>

@@ -28,31 +28,12 @@ const updateClientSchema = z.object({
 // Publication schemas
 const createPublicationSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  website: z.string().optional().nullable(),
-  clientId: positiveInt.optional().nullable()
+  website: z.string().optional().nullable()
 });
 
 const updatePublicationSchema = z.object({
   name: z.string().min(1).optional(),
-  website: z.string().optional().nullable(),
-  clientId: positiveInt.optional().nullable()
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
-
-// Press Release schemas
-const createPressReleaseSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  content: z.string().optional().default(''),
-  releaseDate: isoDate,
-  clientId: positiveInt
-});
-
-const updatePressReleaseSchema = z.object({
-  title: z.string().min(1).optional(),
-  content: z.string().optional(),
-  releaseDate: isoDate.optional(),
-  clientId: positiveInt.optional()
+  website: z.string().optional().nullable()
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided'
 });
@@ -71,8 +52,7 @@ const createMediaMentionSchema = z.object({
   sentiment: sentimentEnum,
   status: statusEnum.default('new'),
   clientId: positiveInt,
-  publicationId: positiveInt,
-  pressReleaseId: positiveInt.optional().nullable()
+  publicationId: positiveInt
 });
 
 const updateMediaMentionSchema = z.object({
@@ -86,7 +66,6 @@ const updateMediaMentionSchema = z.object({
   status: statusEnum,
   clientId: positiveInt.optional(),
   publicationId: positiveInt.optional(),
-  pressReleaseId: positiveInt.optional().nullable(),
   verified: z.number().int().min(0).max(1).optional()
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided'
@@ -96,7 +75,6 @@ const updateMediaMentionSchema = z.object({
 const listMediaMentionsSchema = z.object({
   clientId: positiveInt.optional(),
   publicationId: positiveInt.optional(),
-  pressReleaseId: positiveInt.optional(),
   startDate: isoDate.optional(),
   endDate: isoDate.optional(),
   subject: z.string().optional()
@@ -169,9 +147,6 @@ module.exports = {
   // Publication
   createPublicationSchema,
   updatePublicationSchema,
-  // Press Release
-  createPressReleaseSchema,
-  updatePressReleaseSchema,
   // Media Mention
   createMediaMentionSchema,
   updateMediaMentionSchema,

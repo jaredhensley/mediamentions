@@ -2,7 +2,6 @@ export type Publication = {
   id: number;
   name: string;
   website?: string | null;
-  clientId?: number | null;
 };
 
 export type Mention = {
@@ -15,18 +14,9 @@ export type Mention = {
   source?: string | null;
   clientId: number;
   publicationId: number;
-  pressReleaseId?: number | null;
   sentiment?: 'positive' | 'neutral' | 'negative';
   status?: 'new' | 'in-review' | 'published';
   verified?: number;
-};
-
-export type PressRelease = {
-  id: number;
-  clientId: number;
-  title: string;
-  content?: string;
-  releaseDate: string;
 };
 
 export type Client = {

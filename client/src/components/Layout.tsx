@@ -16,7 +16,6 @@ import {
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PersonIcon from '@mui/icons-material/Person';
-import ArticleIcon from '@mui/icons-material/Article';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -30,7 +29,6 @@ const drawerWidth = 240;
 const navItems = [
   { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
   { label: 'Clients', to: '/clients', icon: <PersonIcon /> },
-  { label: 'Press Releases', to: '/press-releases', icon: <ArticleIcon /> },
   { label: 'Publications', to: '/publications', icon: <NewspaperIcon /> },
   { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
 ];

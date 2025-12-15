@@ -109,7 +109,6 @@ export default function PublicationsPage() {
             ? {
                 name: editingPublication.name,
                 website: editingPublication.website || '',
-                clientId: editingPublication.clientId ?? null,
               }
             : undefined
         }

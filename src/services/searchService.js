@@ -3,13 +3,13 @@ const { getSearchProfile } = require('../data/clientSearchProfiles');
 const { runQuery } = require('../db');
 const { providerLookup } = require('../providers/providers');
 const { searchConfig } = require('../config');
-const { normalizeResult, dedupeMentions, associatePressRelease, recordMentions } = require('../utils/mentions');
+const { normalizeResult, dedupeMentions, recordMentions } = require('../utils/mentions');
 const { buildSearchRequest } = require('../utils/searchQueries');
 const { filterResultsForClient } = require('../utils/searchFilters');
 const { verifyAllMentions } = require('../scripts/verifyMentions');
 const verificationStatus = require('./verificationStatus');
 
-function buildQueries(client, profile, activePressReleases) {
+function buildQueries(client, profile) {
   const queries = [];
 
   // Base query (general search)
@@ -30,21 +30,7 @@ function buildQueries(client, profile, activePressReleases) {
     queries.push(siteQuery);
   }
 
-  // Press release queries
-  const perRelease = activePressReleases.map((release) =>
-    buildSearchRequest(client, profile, { extraPhrases: [release.title], label: `press:${release.title}` })
-  );
-  queries.push(...perRelease);
-
   return queries;
-}
-
-function hydratePressReleasesForClient(client) {
-  const rows = runQuery('SELECT id, title FROM pressReleases WHERE clientId=@p0;', [client.id]);
-  if (!rows.length) {
-    return [];
-  }
-  return rows.map((release) => ({ ...release, keywords: [release.title || client.name] }));
 }
 
 function loadClients() {
@@ -86,8 +72,7 @@ async function runSearchJob() {
   const activeClients = loadClients();
   for (const client of activeClients) {
     const profile = getSearchProfile(client);
-    const activePressReleases = hydratePressReleasesForClient(client);
-    const queries = buildQueries(client, profile, activePressReleases);
+    const queries = buildQueries(client, profile);
     const providerResults = [];
 
     for (const providerName of searchConfig.providers) {
@@ -99,12 +84,7 @@ async function runSearchJob() {
     }
 
     const deduped = dedupeMentions(providerResults);
-    const associated = deduped.map((result) => ({
-      ...result,
-      matchedPressReleaseId: associatePressRelease(result, activePressReleases)
-    }));
-
-    const created = recordMentions(associated, searchConfig.mentionStatus);
+    const created = recordMentions(deduped, searchConfig.mentionStatus);
     jobLog.createdMentions += created.length;
   }
 
