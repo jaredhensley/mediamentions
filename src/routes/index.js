@@ -5,6 +5,7 @@
 const { runQuery } = require('../db');
 const { parseJsonBody, sendJson, escapeXml, formatDisplayDate, buildUpdateFields } = require('../utils/http');
 const { getStatus: getVerificationStatus } = require('../services/verificationStatus');
+const { pollRssFeeds, loadClientsWithRssFeeds } = require('../services/rssService');
 const {
   validate,
   createClientSchema,
@@ -41,8 +42,8 @@ async function createClient(req, res) {
     }
     const now = new Date().toISOString();
     const [client] = runQuery(
-      'INSERT INTO clients (name, contactEmail, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
-      [validation.data.name, validation.data.contactEmail, now],
+      'INSERT INTO clients (name, contactEmail, alertsRssFeedUrl, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p3) RETURNING *;',
+      [validation.data.name, validation.data.contactEmail, validation.data.alertsRssFeedUrl || null, now],
     );
     sendJson(res, 201, client);
   } catch (error) {
@@ -76,7 +77,7 @@ async function updateClient(req, res, params) {
     sendJson(res, 400, { error: validation.error });
     return;
   }
-  const { keys, values } = buildUpdateFields(validation.data, ['name', 'contactEmail']);
+  const { keys, values } = buildUpdateFields(validation.data, ['name', 'contactEmail', 'alertsRssFeedUrl']);
   keys.push('updatedAt');
   values.push(new Date().toISOString());
   values.push(idValidation.data.id);
@@ -842,6 +843,32 @@ function getPendingReviewCount(req, res) {
 }
 
 // ============================================================================
+// RSS FEED HANDLERS
+// ============================================================================
+
+async function triggerRssPoll(req, res) {
+  try {
+    console.log('[api] Manual RSS poll triggered');
+    const result = await pollRssFeeds({ runVerification: true });
+    sendJson(res, 200, result);
+  } catch (err) {
+    sendJson(res, 500, { error: err.message });
+  }
+}
+
+function getRssFeedStatus(req, res) {
+  const clients = loadClientsWithRssFeeds();
+  sendJson(res, 200, {
+    clientsWithFeeds: clients.length,
+    clients: clients.map(c => ({
+      id: c.id,
+      name: c.name,
+      feedUrl: c.alertsRssFeedUrl
+    }))
+  });
+}
+
+// ============================================================================
 // ROUTE TABLE
 // ============================================================================
 
@@ -891,6 +918,9 @@ const routes = [
   { method: 'GET', pattern: '/admin/pending-review/count', handler: getPendingReviewCount },
   { method: 'POST', pattern: '/admin/pending-review/:id/accept', handler: acceptPendingReview },
   { method: 'POST', pattern: '/admin/pending-review/:id/reject', handler: rejectPendingReview },
+
+  { method: 'GET', pattern: '/admin/rss-feeds', handler: getRssFeedStatus },
+  { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll },
 ];
 
 module.exports = {

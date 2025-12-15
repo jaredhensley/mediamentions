@@ -7,7 +7,7 @@ const http = require('http');
 const { initializeDatabase } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
-const { scheduleDailySearch } = require('./services/scheduler');
+const { scheduleDailySearch, scheduleRssPolling } = require('./services/scheduler');
 const { initWebSocket } = require('./services/websocket');
 const { validateConfig, config } = require('./config');
 const { requireApiKey } = require('./middleware/auth');
@@ -79,5 +79,13 @@ server.listen(PORT, async () => {
     await scheduleDailySearch({ runImmediately: true });
   } catch (err) {
     console.error('[scheduler] failed to start search scheduler', err);
+  }
+
+  // Start RSS feed polling scheduler (runs every 2 hours)
+  // Don't run immediately on startup - let daily search complete first
+  try {
+    await scheduleRssPolling({ runImmediately: false });
+  } catch (err) {
+    console.error('[scheduler] failed to start RSS polling scheduler', err);
   }
 });

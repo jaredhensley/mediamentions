@@ -34,4 +34,5 @@ export type Client = {
   name: string;
   contactEmail?: string;
   notes?: string;
+  alertsRssFeedUrl?: string | null;
 };

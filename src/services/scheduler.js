@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 
 const { runSearchJob } = require('./searchService');
+const { pollRssFeeds } = require('./rssService');
 const { searchConfig } = require('../config');
 
 function parseSchedule(timeString) {
@@ -92,6 +93,40 @@ async function scheduleDailySearch({ runImmediately = false } = {}) {
   return task;
 }
 
+/**
+ * Schedule RSS feed polling to run every 2 hours
+ * RSS feeds are polled more frequently than CSE to catch new mentions faster
+ * @param {Object} options - Scheduler options
+ * @param {boolean} options.runImmediately - Run RSS poll immediately on startup
+ * @returns {Object} - Scheduled cron task
+ */
+async function scheduleRssPolling({ runImmediately = false } = {}) {
+  // Run every 2 hours at minute 30 (offset from daily search)
+  const cronExpression = '30 */2 * * *';
+
+  console.log(`[scheduler] registering RSS polling cron job with expression "${cronExpression}"`);
+  const task = cron.schedule(
+    cronExpression,
+    async () => {
+      console.log(`[scheduler] starting RSS polling run at ${new Date().toISOString()}`);
+      await pollRssFeeds();
+      logNextRun(task);
+    },
+    { scheduled: true, timezone: 'UTC' }
+  );
+
+  logNextRun(task);
+
+  if (runImmediately) {
+    console.log('[scheduler] running immediate RSS poll');
+    await pollRssFeeds();
+    logNextRun(task);
+  }
+
+  return task;
+}
+
 module.exports = {
-  scheduleDailySearch
+  scheduleDailySearch,
+  scheduleRssPolling
 };

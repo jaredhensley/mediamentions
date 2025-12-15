@@ -98,6 +98,14 @@ const config = {
   },
   logging: {
     level: process.env.LOG_LEVEL || 'info'
+  },
+  rss: {
+    // Polling interval in hours (default: every 2 hours)
+    pollingIntervalHours: Number(process.env.RSS_POLLING_INTERVAL_HOURS) || 2,
+    // Request timeout for RSS feeds (ms)
+    fetchTimeoutMs: Number(process.env.RSS_FETCH_TIMEOUT_MS) || 30000,
+    // Whether to run verification automatically after RSS polling
+    autoVerify: process.env.RSS_AUTO_VERIFY !== 'false'
   }
 };
 

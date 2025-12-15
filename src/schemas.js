@@ -13,13 +13,15 @@ const url = z.string().url().optional().or(z.literal(''));
 // Client schemas
 const createClientSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  contactEmail: email
+  contactEmail: email,
+  alertsRssFeedUrl: z.string().url().optional().nullable()
 });
 
 const updateClientSchema = z.object({
   name: z.string().min(1).optional(),
-  contactEmail: email.optional()
-}).refine(data => Object.keys(data).length > 0, {
+  contactEmail: email.optional(),
+  alertsRssFeedUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional()
+}).partial().refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided'
 });
 
@@ -154,7 +156,9 @@ function validate(schema, data) {
   if (result.success) {
     return { success: true, data: result.data };
   }
-  const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+  // Zod v3 uses .issues, but .errors is an alias; handle both for safety
+  const issues = result.error?.issues || result.error?.errors || [];
+  const errors = issues.map(e => `${e.path?.join('.') || ''}: ${e.message}`).join(', ') || 'Validation failed';
   return { success: false, error: errors };
 }
 

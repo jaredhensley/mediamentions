@@ -20,14 +20,17 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import RssFeedIcon from '@mui/icons-material/RssFeed';
 import { useSearchParams } from 'react-router-dom';
-import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention, exportClientMentions } from '../api';
+import { fetchClients, fetchMentions, fetchPressReleases, fetchPublications, deleteMention, exportClientMentions, updateClient } from '../api';
 import { Client, Mention, PressRelease, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import PressReleaseFormModal, { PressReleaseFormData } from '../components/PressReleaseFormModal';
+import RssFeedModal from '../components/RssFeedModal';
 import { formatDisplayDate } from '../utils/format';
 import { useToast } from '../hooks/useToast';
 
@@ -41,6 +44,8 @@ export default function ClientsPage() {
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [pressModalOpen, setPressModalOpen] = useState(false);
+  const [rssModalOpen, setRssModalOpen] = useState(false);
+  const [rssModalClient, setRssModalClient] = useState<Client | null>(null);
   const [clientForm, setClientForm] = useState({ name: '', notes: '' });
   const [searchParams, setSearchParams] = useSearchParams();
   const { showError } = useToast();
@@ -158,6 +163,21 @@ export default function ClientsPage() {
     }
   };
 
+  const handleRssIconClick = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRssModalClient(client);
+    setRssModalOpen(true);
+  };
+
+  const handleRssFeedSave = async (url: string | null) => {
+    if (!rssModalClient) return;
+
+    const updatedClient = await updateClient(rssModalClient.id, { alertsRssFeedUrl: url });
+    setClientList((prev) =>
+      prev.map((c) => (c.id === rssModalClient.id ? { ...c, alertsRssFeedUrl: updatedClient.alertsRssFeedUrl } : c))
+    );
+  };
+
   return (
     <Stack spacing={3}>
       <Typography variant="h4">Clients</Typography>
@@ -204,9 +224,25 @@ export default function ClientsPage() {
                       }}
                     >
                       <TableCell>
-                        <Box display="flex" alignItems="center" gap={1.5}>
-                          <span>{client.name}</span>
-                          <Badge badgeContent={mentionCounts[client.id] || 0} color="primary" sx={{ ml: 1 }} />
+                        <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <span>{client.name}</span>
+                            <Badge badgeContent={mentionCounts[client.id] || 0} color="primary" sx={{ ml: 1 }} />
+                          </Box>
+                          <Tooltip title={client.alertsRssFeedUrl ? 'RSS feed active' : 'Set up RSS feed'}>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => handleRssIconClick(client, e)}
+                              sx={{
+                                color: client.alertsRssFeedUrl ? 'warning.main' : 'action.disabled',
+                                '&:hover': {
+                                  color: client.alertsRssFeedUrl ? 'warning.dark' : 'warning.main',
+                                },
+                              }}
+                            >
+                              <RssFeedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -332,6 +368,15 @@ export default function ClientsPage() {
         onClose={() => setPressModalOpen(false)}
         onSave={handlePressSave}
         clients={clientList}
+      />
+      <RssFeedModal
+        open={rssModalOpen}
+        onClose={() => {
+          setRssModalOpen(false);
+          setRssModalClient(null);
+        }}
+        onSave={handleRssFeedSave}
+        client={rssModalClient}
       />
     </Stack>
   );
