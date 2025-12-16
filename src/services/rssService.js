@@ -10,23 +10,26 @@ const { verifyAllMentions } = require('../scripts/verifyMentions');
 const verificationStatus = require('./verificationStatus');
 
 /**
- * Parse RSS XML into items array
- * Google Alerts RSS feeds have a predictable structure
- * @param {string} xml - Raw RSS XML content
+ * Parse RSS/Atom XML into items array
+ * Google Alerts uses Atom format with <entry> tags
+ * @param {string} xml - Raw RSS/Atom XML content
  * @returns {Array<{title: string, link: string, pubDate: string, description: string}>}
  */
 function parseRssXml(xml) {
   const items = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+
+  // Try Atom format first (Google Alerts uses this)
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
   let match;
 
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const itemXml = match[1];
+  while ((match = entryRegex.exec(xml)) !== null) {
+    const entryXml = match[1];
 
-    const title = extractTag(itemXml, 'title');
-    const rawLink = extractTag(itemXml, 'link');
-    const pubDate = extractTag(itemXml, 'pubDate');
-    const description = extractTag(itemXml, 'description');
+    const title = extractTag(entryXml, 'title');
+    // Atom uses <link href="..."> attribute, not content
+    const rawLink = extractLinkHref(entryXml) || extractTag(entryXml, 'link');
+    const pubDate = extractTag(entryXml, 'published') || extractTag(entryXml, 'updated');
+    const description = extractTag(entryXml, 'content') || extractTag(entryXml, 'summary');
 
     // Decode HTML entities in the link before processing
     const decodedLink = rawLink ? decodeXmlEntities(rawLink) : null;
@@ -41,7 +44,42 @@ function parseRssXml(xml) {
     }
   }
 
+  // If no Atom entries found, try RSS format
+  if (items.length === 0) {
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    while ((match = itemRegex.exec(xml)) !== null) {
+      const itemXml = match[1];
+
+      const title = extractTag(itemXml, 'title');
+      const rawLink = extractTag(itemXml, 'link');
+      const pubDate = extractTag(itemXml, 'pubDate');
+      const description = extractTag(itemXml, 'description');
+
+      const decodedLink = rawLink ? decodeXmlEntities(rawLink) : null;
+
+      if (decodedLink) {
+        items.push({
+          title: decodeHtmlEntities(title || 'Untitled'),
+          link: cleanGoogleAlertUrl(decodedLink),
+          pubDate,
+          description: decodeHtmlEntities(description || '')
+        });
+      }
+    }
+  }
+
   return items;
+}
+
+/**
+ * Extract href attribute from link tag (Atom format)
+ * @param {string} xml - XML string
+ * @returns {string|null}
+ */
+function extractLinkHref(xml) {
+  const linkRegex = /<link[^>]*href=["']([^"']+)["'][^>]*>/i;
+  const match = xml.match(linkRegex);
+  return match ? match[1] : null;
 }
 
 /**
