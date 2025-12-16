@@ -89,15 +89,15 @@ function extractLinkHref(xml) {
  * @returns {string|null}
  */
 function extractTag(xml, tagName) {
-  // Handle CDATA sections
-  const cdataRegex = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`, 'i');
+  // Handle CDATA sections (with optional attributes on the tag)
+  const cdataRegex = new RegExp(`<${tagName}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`, 'i');
   const cdataMatch = xml.match(cdataRegex);
   if (cdataMatch) {
     return cdataMatch[1].trim();
   }
 
-  // Handle regular tags
-  const regex = new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i');
+  // Handle regular tags (with optional attributes like type="html")
+  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)</${tagName}>`, 'i');
   const match = xml.match(regex);
   return match ? match[1].trim() : null;
 }
