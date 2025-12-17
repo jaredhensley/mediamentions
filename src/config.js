@@ -128,6 +128,7 @@ const searchConfig = {
 
 function validateConfig() {
   const errors = [];
+  const warnings = [];
 
   if (!config.providers.google.apiKey) {
     errors.push('GOOGLE_API_KEY is required');
@@ -135,6 +136,21 @@ function validateConfig() {
 
   if (!config.providers.google.searchEngineId) {
     errors.push('GOOGLE_CSE_ID is required');
+  }
+
+  // Warn about missing API_KEY in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!config.auth.apiKey) {
+    if (isProduction) {
+      errors.push('API_KEY is required in production mode');
+    } else {
+      warnings.push('API_KEY not set - authentication disabled (set NODE_ENV=production to enforce)');
+    }
+  }
+
+  // Log warnings
+  for (const warning of warnings) {
+    console.warn(`[config] Warning: ${warning}`);
   }
 
   if (errors.length > 0) {

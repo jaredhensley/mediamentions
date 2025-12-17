@@ -3,7 +3,7 @@
  */
 
 const { runQuery } = require('../db');
-const { parseJsonBody, sendJson, escapeXml, formatDisplayDate, buildUpdateFields } = require('../utils/http');
+const { parseJsonBody, sendJson, escapeXml, formatDisplayDate } = require('../utils/http');
 const { getStatus: getVerificationStatus } = require('../services/verificationStatus');
 const { pollRssFeeds, loadClientsWithRssFeeds } = require('../services/rssService');
 const {
@@ -20,15 +20,21 @@ const {
   updateSearchJobSchema,
   idParamSchema
 } = require('../schemas');
+const {
+  createGetHandler,
+  createUpdateHandler,
+  createDeleteHandler,
+  createListHandler
+} = require('./helpers');
 
 // ============================================================================
 // CLIENT ROUTES
 // ============================================================================
 
-async function listClients(_req, res) {
-  const clients = runQuery('SELECT * FROM clients ORDER BY id;');
-  sendJson(res, 200, clients);
-}
+const listClients = createListHandler('clients');
+const getClient = createGetHandler('clients', 'Client');
+const updateClient = createUpdateHandler('clients', 'Client', updateClientSchema, ['name', 'contactEmail', 'alertsRssFeedUrl']);
+const deleteClient = createDeleteHandler('clients', 'Client');
 
 async function createClient(req, res) {
   try {
@@ -49,70 +55,14 @@ async function createClient(req, res) {
   }
 }
 
-async function getClient(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [client] = runQuery('SELECT * FROM clients WHERE id=@p0;', [validation.data.id]);
-  if (!client) {
-    sendJson(res, 404, { error: 'Client not found' });
-    return;
-  }
-  sendJson(res, 200, client);
-}
-
-async function updateClient(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updateClientSchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, ['name', 'contactEmail', 'alertsRssFeedUrl']);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [client] = runQuery(
-    `UPDATE clients SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!client) {
-    sendJson(res, 404, { error: 'Client not found' });
-    return;
-  }
-  sendJson(res, 200, client);
-}
-
-async function deleteClient(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [client] = runQuery('DELETE FROM clients WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!client) {
-    sendJson(res, 404, { error: 'Client not found' });
-    return;
-  }
-  sendJson(res, 200, client);
-}
-
 // ============================================================================
 // PUBLICATION ROUTES
 // ============================================================================
 
-async function listPublications(_req, res) {
-  const publications = runQuery("SELECT * FROM publications WHERE name != 'Unknown Source' ORDER BY id;");
-  sendJson(res, 200, publications);
-}
+const listPublications = createListHandler('publications', { whereClause: "name != 'Unknown Source'" });
+const getPublication = createGetHandler('publications', 'Publication');
+const updatePublication = createUpdateHandler('publications', 'Publication', updatePublicationSchema, ['name', 'website']);
+const deletePublication = createDeleteHandler('publications', 'Publication');
 
 async function createPublication(req, res) {
   try {
@@ -133,65 +83,16 @@ async function createPublication(req, res) {
   }
 }
 
-async function getPublication(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [publication] = runQuery('SELECT * FROM publications WHERE id=@p0;', [validation.data.id]);
-  if (!publication) {
-    sendJson(res, 404, { error: 'Publication not found' });
-    return;
-  }
-  sendJson(res, 200, publication);
-}
-
-async function updatePublication(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updatePublicationSchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, ['name', 'website']);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [publication] = runQuery(
-    `UPDATE publications SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!publication) {
-    sendJson(res, 404, { error: 'Publication not found' });
-    return;
-  }
-  sendJson(res, 200, publication);
-}
-
-async function deletePublication(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [publication] = runQuery('DELETE FROM publications WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!publication) {
-    sendJson(res, 404, { error: 'Publication not found' });
-    return;
-  }
-  sendJson(res, 200, publication);
-}
-
 // ============================================================================
 // MEDIA MENTION ROUTES
 // ============================================================================
+
+const getMediaMention = createGetHandler('mediaMentions', 'Media mention');
+const updateMediaMention = createUpdateHandler('mediaMentions', 'Media mention', updateMediaMentionSchema, [
+  'title', 'subjectMatter', 'mentionDate', 'reMentionDate', 'link',
+  'source', 'sentiment', 'status', 'clientId', 'publicationId', 'verified'
+]);
+const deleteMediaMention = createDeleteHandler('mediaMentions', 'Media mention');
 
 async function listMediaMentions(req, res) {
   const url = new URL(req.url, 'http://localhost');
@@ -258,82 +159,14 @@ async function createMediaMention(req, res) {
   }
 }
 
-async function getMediaMention(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [mention] = runQuery('SELECT * FROM mediaMentions WHERE id=@p0;', [validation.data.id]);
-  if (!mention) {
-    sendJson(res, 404, { error: 'Media mention not found' });
-    return;
-  }
-  sendJson(res, 200, mention);
-}
-
-async function updateMediaMention(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updateMediaMentionSchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, [
-    'title',
-    'subjectMatter',
-    'mentionDate',
-    'reMentionDate',
-    'link',
-    'source',
-    'sentiment',
-    'status',
-    'clientId',
-    'publicationId',
-    'verified',
-  ]);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [mention] = runQuery(
-    `UPDATE mediaMentions SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!mention) {
-    sendJson(res, 404, { error: 'Media mention not found' });
-    return;
-  }
-  sendJson(res, 200, mention);
-}
-
-async function deleteMediaMention(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [mention] = runQuery('DELETE FROM mediaMentions WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!mention) {
-    sendJson(res, 404, { error: 'Media mention not found' });
-    return;
-  }
-  sendJson(res, 200, mention);
-}
-
 // ============================================================================
 // FEEDBACK SUMMARY ROUTES
 // ============================================================================
 
-async function listFeedbackSummaries(_req, res) {
-  const summaries = runQuery('SELECT * FROM feedbackSummaries ORDER BY id;');
-  sendJson(res, 200, summaries);
-}
+const listFeedbackSummaries = createListHandler('feedbackSummaries');
+const getFeedbackSummary = createGetHandler('feedbackSummaries', 'Feedback summary');
+const updateFeedbackSummary = createUpdateHandler('feedbackSummaries', 'Feedback summary', updateFeedbackSummarySchema, ['clientId', 'summary', 'rating', 'period']);
+const deleteFeedbackSummary = createDeleteHandler('feedbackSummaries', 'Feedback summary');
 
 async function createFeedbackSummary(req, res) {
   try {
@@ -355,70 +188,14 @@ async function createFeedbackSummary(req, res) {
   }
 }
 
-async function getFeedbackSummary(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [summary] = runQuery('SELECT * FROM feedbackSummaries WHERE id=@p0;', [validation.data.id]);
-  if (!summary) {
-    sendJson(res, 404, { error: 'Feedback summary not found' });
-    return;
-  }
-  sendJson(res, 200, summary);
-}
-
-async function updateFeedbackSummary(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updateFeedbackSummarySchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, ['clientId', 'summary', 'rating', 'period']);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [summary] = runQuery(
-    `UPDATE feedbackSummaries SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!summary) {
-    sendJson(res, 404, { error: 'Feedback summary not found' });
-    return;
-  }
-  sendJson(res, 200, summary);
-}
-
-async function deleteFeedbackSummary(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [summary] = runQuery('DELETE FROM feedbackSummaries WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!summary) {
-    sendJson(res, 404, { error: 'Feedback summary not found' });
-    return;
-  }
-  sendJson(res, 200, summary);
-}
-
 // ============================================================================
 // SEARCH JOB ROUTES
 // ============================================================================
 
-async function listSearchJobs(_req, res) {
-  const jobs = runQuery('SELECT * FROM searchJobs ORDER BY id;');
-  sendJson(res, 200, jobs);
-}
+const listSearchJobs = createListHandler('searchJobs');
+const getSearchJob = createGetHandler('searchJobs', 'Search job');
+const updateSearchJob = createUpdateHandler('searchJobs', 'Search job', updateSearchJobSchema, ['clientId', 'query', 'status', 'scheduledAt', 'completedAt']);
+const deleteSearchJob = createDeleteHandler('searchJobs', 'Search job');
 
 async function createSearchJob(req, res) {
   try {
@@ -438,62 +215,6 @@ async function createSearchJob(req, res) {
   } catch (error) {
     sendJson(res, 400, { error: error.message });
   }
-}
-
-async function getSearchJob(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [job] = runQuery('SELECT * FROM searchJobs WHERE id=@p0;', [validation.data.id]);
-  if (!job) {
-    sendJson(res, 404, { error: 'Search job not found' });
-    return;
-  }
-  sendJson(res, 200, job);
-}
-
-async function updateSearchJob(req, res, params) {
-  const idValidation = validate(idParamSchema, params);
-  if (!idValidation.success) {
-    sendJson(res, 400, { error: idValidation.error });
-    return;
-  }
-  const body = await parseJsonBody(req);
-  const validation = validate(updateSearchJobSchema, body);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const { keys, values } = buildUpdateFields(validation.data, ['clientId', 'query', 'status', 'scheduledAt', 'completedAt']);
-  keys.push('updatedAt');
-  values.push(new Date().toISOString());
-  values.push(idValidation.data.id);
-  const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
-  const [job] = runQuery(
-    `UPDATE searchJobs SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-    values,
-  );
-  if (!job) {
-    sendJson(res, 404, { error: 'Search job not found' });
-    return;
-  }
-  sendJson(res, 200, job);
-}
-
-async function deleteSearchJob(_req, res, params) {
-  const validation = validate(idParamSchema, params);
-  if (!validation.success) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
-  const [job] = runQuery('DELETE FROM searchJobs WHERE id=@p0 RETURNING *;', [validation.data.id]);
-  if (!job) {
-    sendJson(res, 404, { error: 'Search job not found' });
-    return;
-  }
-  sendJson(res, 200, job);
 }
 
 // ============================================================================

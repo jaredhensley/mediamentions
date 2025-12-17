@@ -44,7 +44,13 @@ function broadcast(type, data) {
 
   clients.forEach((client) => {
     if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(message);
+      try {
+        client.send(message);
+      } catch (err) {
+        // Remove client on send error
+        console.error('[websocket] Failed to send message to client:', err.message);
+        clients.delete(client);
+      }
     }
   });
 }

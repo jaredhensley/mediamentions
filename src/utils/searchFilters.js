@@ -509,9 +509,5 @@ function filterResultsForClient(results, profile, client) {
 }
 
 module.exports = {
-  filterResultsForClient,
-  getNameVariations, // Export for testing
-  countMatches, // Export for testing
-  isNonEditorialPattern, // Export for testing
-  hasEditorialLanguage, // Export for testing
+  filterResultsForClient
 };

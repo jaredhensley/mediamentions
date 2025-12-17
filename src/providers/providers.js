@@ -4,7 +4,10 @@
  */
 
 const { randomUUID } = require('crypto');
-const { providerApiKeys, providerConfig } = require('../config');
+const { providerApiKeys, providerConfig, config } = require('../config');
+
+// Default timeout for Google API requests (30 seconds)
+const API_TIMEOUT_MS = config.verification?.fetchTimeoutMs || 30000;
 
 /**
  * @typedef {Object} SearchResult
@@ -102,7 +105,22 @@ async function googleSearch(searchRequest, { maxResults }) {
     }
 
     const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
-    const response = await fetch(url, { headers });
+
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await fetch(url, { headers, signal: controller.signal });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error(`Google search timed out after ${API_TIMEOUT_MS}ms`);
+      }
+      throw err;
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       let detail = `${response.status} ${response.statusText}`;

@@ -1,25 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-
-export interface VerificationStatusData {
-  isRunning: boolean;
-  phase: 'idle' | 'searching' | 'verifying' | 'complete';
-  total: number;
-  processed: number;
-  verified: number;
-  failed: number;
-}
-
-export interface MentionVerifiedData {
-  mentionId: number;
-  verified: number;
-  reason: string;
-  title: string;
-  clientName: string;
-}
+import { useEffect, useRef, useCallback } from 'react';
+import { VerificationStatusData } from '../api';
 
 export interface WebSocketMessage {
   type: string;
-  status?: VerificationStatusData;
+  status?: Partial<VerificationStatusData>;
   mentionId?: number;
   verified?: number;
   reason?: string;
@@ -33,10 +17,8 @@ type MessageHandler = (message: WebSocketMessage) => void;
 
 const WS_URL = 'ws://localhost:3000';
 
-export function useWebSocket(onMessage?: MessageHandler) {
+export function useWebSocket(onMessage?: MessageHandler): void {
   const wsRef = useRef<WebSocket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageHandlerRef = useRef<MessageHandler | undefined>(onMessage);
 
@@ -52,39 +34,34 @@ export function useWebSocket(onMessage?: MessageHandler) {
       const ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
-        console.log('[WebSocket] Connected');
-        setIsConnected(true);
+        // Connected successfully
       };
 
       ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
-        setIsConnected(false);
         wsRef.current = null;
 
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('[WebSocket] Attempting to reconnect...');
           connect();
         }, 3000);
       };
 
-      ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
+      ws.onerror = () => {
+        // Error handled by onclose
       };
 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data) as WebSocketMessage;
-          setLastMessage(message);
           messageHandlerRef.current?.(message);
-        } catch (error) {
-          console.error('[WebSocket] Failed to parse message:', error);
+        } catch {
+          // Silently ignore parse errors
         }
       };
 
       wsRef.current = ws;
-    } catch (error) {
-      console.error('[WebSocket] Failed to connect:', error);
+    } catch {
+      // Connection failed, will retry via reconnect logic
     }
   }, []);
 
@@ -100,9 +77,4 @@ export function useWebSocket(onMessage?: MessageHandler) {
       }
     };
   }, [connect]);
-
-  return {
-    isConnected,
-    lastMessage,
-  };
 }

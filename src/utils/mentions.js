@@ -260,5 +260,5 @@ module.exports = {
   dedupeMentions,
   recordMentions,
   extractDomain,
-  cleanSnippet
+  cleanSnippet // Exported for testing
 };

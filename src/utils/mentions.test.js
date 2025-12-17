@@ -1,4 +1,4 @@
-const { cleanSnippet, extractDomain, dedupeMentions } = require('./mentions');
+const { extractDomain, dedupeMentions, cleanSnippet } = require('./mentions');
 
 describe('cleanSnippet', () => {
   test('removes "X hours ago" prefix', () => {

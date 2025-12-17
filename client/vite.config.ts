@@ -8,8 +8,8 @@ export default defineConfig({
       '/clients': 'http://localhost:3000',
       '/publications': 'http://localhost:3000',
       '/media-mentions': 'http://localhost:3000',
-      '/press-releases': 'http://localhost:3000',
-      '/api': 'http://localhost:3000'
+      '/api': 'http://localhost:3000',
+      '/admin': 'http://localhost:3000'
     }
   }
 });

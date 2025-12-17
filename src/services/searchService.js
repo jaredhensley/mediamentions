@@ -6,7 +6,7 @@ const { searchConfig } = require('../config');
 const { normalizeResult, dedupeMentions, recordMentions } = require('../utils/mentions');
 const { buildSearchRequest } = require('../utils/searchQueries');
 const { filterResultsForClient } = require('../utils/searchFilters');
-const { verifyAllMentions } = require('../scripts/verifyMentions');
+const { runVerificationPass, skipVerification } = require('./verificationHelper');
 const verificationStatus = require('./verificationStatus');
 
 function buildQueries(client, profile) {
@@ -90,23 +90,9 @@ async function runSearchJob() {
 
   // Run verification on all unverified mentions
   if (jobLog.createdMentions > 0) {
-    console.log('\n[verification] Starting automatic verification of new mentions...');
-    // Count total mentions to verify
-    const totalMentions = runQuery('SELECT COUNT(*) as count FROM mediaMentions WHERE verified IS NULL OR verified != 1')[0]?.count || 0;
-    verificationStatus.setVerifying(totalMentions);
-    try {
-      const verificationResults = await verifyAllMentions({ silent: false });
-      jobLog.verificationResults = verificationResults;
-      verificationStatus.setComplete(verificationResults);
-      console.log(`[verification] ✓ Completed: ${verificationResults.verified} verified, ${verificationResults.failed} failed`);
-    } catch (err) {
-      console.warn(`[verification] ✗ Failed: ${err.message}`);
-      jobLog.errors.push({ step: 'verification', message: err.message });
-      verificationStatus.setComplete({ total: 0, verified: 0, failed: 0 });
-    }
+    await runVerificationPass({ source: 'search', jobLog });
   } else {
-    console.log('[verification] Skipped (no new mentions created)');
-    verificationStatus.setComplete({ total: 0, verified: 0, failed: 0 });
+    skipVerification();
   }
 
   jobLog.finishedAt = new Date().toISOString();

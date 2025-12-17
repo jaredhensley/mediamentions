@@ -31,9 +31,10 @@ start()
   .then(() => {
     if (runOnce) {
       console.log('[results] job completed successfully');
+      process.exit(0);
     }
   })
   .catch((err) => {
     console.error('[startup] failed to start scheduler', err);
-    process.exitCode = 1;
+    process.exit(1);
   });

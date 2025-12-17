@@ -6,8 +6,7 @@
 const { randomUUID } = require('crypto');
 const { runQuery } = require('../db');
 const { normalizeResult, dedupeMentions, recordMentions } = require('../utils/mentions');
-const { verifyAllMentions } = require('../scripts/verifyMentions');
-const verificationStatus = require('./verificationStatus');
+const { runVerificationPass } = require('./verificationHelper');
 
 /**
  * Parse RSS/Atom XML into items array
@@ -272,19 +271,7 @@ async function pollRssFeeds({ runVerification = false } = {}) {
 
   // Run verification if requested and we created mentions
   if (runVerification && jobLog.mentionsCreated > 0) {
-    console.log('\n[rss/verification] Starting automatic verification of new mentions...');
-    const totalMentions = runQuery('SELECT COUNT(*) as count FROM mediaMentions WHERE verified IS NULL OR verified != 1')[0]?.count || 0;
-    verificationStatus.setVerifying(totalMentions);
-    try {
-      const verificationResults = await verifyAllMentions({ silent: false });
-      jobLog.verificationResults = verificationResults;
-      verificationStatus.setComplete(verificationResults);
-      console.log(`[rss/verification] ✓ Completed: ${verificationResults.verified} verified, ${verificationResults.failed} failed`);
-    } catch (err) {
-      console.warn(`[rss/verification] ✗ Failed: ${err.message}`);
-      jobLog.errors.push({ step: 'verification', message: err.message });
-      verificationStatus.setComplete({ total: 0, verified: 0, failed: 0 });
-    }
+    await runVerificationPass({ source: 'rss', jobLog });
   }
 
   jobLog.finishedAt = new Date().toISOString();

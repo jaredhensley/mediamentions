@@ -7,7 +7,6 @@ import { fetchVerificationStatus, VerificationStatusData } from '../api';
 
 export default function VerificationStatus() {
   const [status, setStatus] = useState<VerificationStatusData | null>(null);
-  const [error, setError] = useState<boolean>(false);
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
@@ -43,14 +42,13 @@ export default function VerificationStatus() {
     fetchVerificationStatus()
       .then(data => {
         setStatus(data);
-        setError(false);
       })
       .catch(() => {
-        setError(true);
+        // Silently fail - status will remain null
       });
   }, []);
 
-  if (error || !status) {
+  if (!status) {
     return null;
   }
 
