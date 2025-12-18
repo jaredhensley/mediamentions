@@ -3,7 +3,7 @@ const defaultClients = require('../data/defaultClients');
 
 function seedDefaultClients({ log = () => {} } = {}) {
   const existingNames = new Set(
-    runQuery('SELECT LOWER(name) as name FROM clients;').map((row) => row.name),
+    runQuery('SELECT LOWER(name) as name FROM clients;').map((row) => row.name)
   );
 
   const now = new Date().toISOString();
@@ -17,7 +17,7 @@ function seedDefaultClients({ log = () => {} } = {}) {
 
     runQuery(
       'INSERT INTO clients (name, contactEmail, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2);',
-      [client.name, client.contactEmail, now],
+      [client.name, client.contactEmail, now]
     );
     inserted += 1;
     existingNames.add(normalizedName);

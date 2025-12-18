@@ -23,10 +23,12 @@ function initWebSocket(server) {
     });
 
     // Send current status on connection
-    ws.send(JSON.stringify({
-      type: 'connected',
-      message: 'Connected to MediaMentions WebSocket'
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'connected',
+        message: 'Connected to MediaMentions WebSocket'
+      })
+    );
   });
 
   console.log('[websocket] WebSocket server initialized');
@@ -43,7 +45,8 @@ function broadcast(type, data) {
   const message = JSON.stringify({ type, ...data });
 
   clients.forEach((client) => {
-    if (client.readyState === 1) { // WebSocket.OPEN
+    if (client.readyState === 1) {
+      // WebSocket.OPEN
       try {
         client.send(message);
       } catch (err) {

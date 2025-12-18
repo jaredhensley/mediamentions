@@ -31,7 +31,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
+      'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
     });
     res.end();
     return;
@@ -40,7 +40,9 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
 
-  const matchedRoute = routes.find((route) => route.method === req.method && matchRoute(route.pattern, req.url.split('?')[0]));
+  const matchedRoute = routes.find(
+    (route) => route.method === req.method && matchRoute(route.pattern, req.url.split('?')[0])
+  );
   if (!matchedRoute) {
     sendJson(res, 404, { error: 'Route not found' });
     return;
@@ -68,7 +70,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  // eslint-disable-next-line no-console
   console.log(`Server listening on port ${PORT}`);
 
   // Initialize WebSocket server for real-time updates BEFORE starting scheduler

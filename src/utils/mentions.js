@@ -19,7 +19,7 @@ function normalizeResult(result, client) {
 function extractDomain(url) {
   try {
     return new URL(url).hostname;
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }
@@ -84,7 +84,8 @@ function recordMentions(results, status) {
 
     const now = new Date().toISOString();
     // Try to extract date from snippet if publishedAt is missing
-    const mentionDate = normalizeDate(result.publishedAt) || extractDateFromSnippet(result.snippet) || now;
+    const mentionDate =
+      normalizeDate(result.publishedAt) || extractDateFromSnippet(result.snippet) || now;
 
     const cleanedSnippet = cleanSnippet(result.snippet);
     const [mention] = runQuery(
@@ -129,7 +130,8 @@ function extractDateFromSnippet(snippet) {
   if (!snippet) return null;
 
   // Pattern 1: "Month DD, YYYY" (e.g., "Nov 10, 2025", "December 3, 2025")
-  const monthDayYearPattern = /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/i;
+  const monthDayYearPattern =
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/i;
   const match1 = snippet.match(monthDayYearPattern);
   if (match1) {
     const dateStr = `${match1[1]} ${match1[2]}, ${match1[3]}`;
@@ -169,7 +171,8 @@ function cleanSnippet(snippet) {
 
   // Remove dates from snippet to avoid confusion with mentionDate
   // Pattern 1: "Month DD, YYYY" (e.g., "Nov 10, 2025", "December 3, 2025")
-  const monthDayYearPattern = /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/gi;
+  const monthDayYearPattern =
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{4})\b/gi;
   cleaned = cleaned.replace(monthDayYearPattern, '');
 
   // Pattern 2: "YYYY-MM-DD" ISO format
@@ -177,7 +180,10 @@ function cleanSnippet(snippet) {
   cleaned = cleaned.replace(isoPattern, '');
 
   // Clean up any double spaces or leading "... " artifacts
-  cleaned = cleaned.replace(/\s+/g, ' ').replace(/^[.\-…\s]+/, '').trim();
+  cleaned = cleaned
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\-…\s]+/, '')
+    .trim();
 
   return cleaned;
 }
@@ -202,7 +208,9 @@ function ensurePublication(domain, cache) {
   }
 
   const [unknown] =
-    runQuery('SELECT id FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', ['unknown source']) || [];
+    runQuery('SELECT id FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [
+      'unknown source'
+    ]) || [];
 
   if (unknown && unknown.id) {
     cache.set(cacheKey, unknown.id);
@@ -218,34 +226,117 @@ function analyzeSentiment(title, snippet) {
   // Expanded sentiment keyword lists with domain-specific terms
   const positives = [
     // General positive
-    'good', 'great', 'positive', 'success', 'win', 'wins', 'winning', 'excellent', 'outstanding',
+    'good',
+    'great',
+    'positive',
+    'success',
+    'win',
+    'wins',
+    'winning',
+    'excellent',
+    'outstanding',
     // Growth & expansion
-    'growth', 'expands', 'expansion', 'growing', 'increases', 'rise', 'soars', 'surge', 'boosts',
+    'growth',
+    'expands',
+    'expansion',
+    'growing',
+    'increases',
+    'rise',
+    'soars',
+    'surge',
+    'boosts',
     // Improvement
-    'improves', 'improvement', 'better', 'enhanced', 'advancement', 'innovation', 'breakthrough',
+    'improves',
+    'improvement',
+    'better',
+    'enhanced',
+    'advancement',
+    'innovation',
+    'breakthrough',
     // Achievement
-    'achieves', 'achievement', 'award', 'awarded', 'recognition', 'honored', 'celebrates',
+    'achieves',
+    'achievement',
+    'award',
+    'awarded',
+    'recognition',
+    'honored',
+    'celebrates',
     // Business positive
-    'profit', 'revenue', 'profitable', 'thriving', 'flourishing', 'partnership', 'collaboration',
+    'profit',
+    'revenue',
+    'profitable',
+    'thriving',
+    'flourishing',
+    'partnership',
+    'collaboration',
     // Agriculture/food specific
-    'harvest', 'abundant', 'quality', 'fresh', 'organic', 'sustainable', 'certified'
+    'harvest',
+    'abundant',
+    'quality',
+    'fresh',
+    'organic',
+    'sustainable',
+    'certified'
   ];
 
   const negatives = [
     // General negative
-    'bad', 'negative', 'poor', 'terrible', 'worst', 'failure', 'failed',
+    'bad',
+    'negative',
+    'poor',
+    'terrible',
+    'worst',
+    'failure',
+    'failed',
     // Decline
-    'decline', 'declining', 'decrease', 'drop', 'drops', 'falling', 'plunges', 'slump',
+    'decline',
+    'declining',
+    'decrease',
+    'drop',
+    'drops',
+    'falling',
+    'plunges',
+    'slump',
     // Loss & damage
-    'loss', 'losses', 'loses', 'losing', 'damage', 'damaged', 'destroyed', 'devastated',
+    'loss',
+    'losses',
+    'loses',
+    'losing',
+    'damage',
+    'damaged',
+    'destroyed',
+    'devastated',
     // Problems
-    'problem', 'issue', 'concern', 'warning', 'alert', 'risk', 'threat', 'crisis',
+    'problem',
+    'issue',
+    'concern',
+    'warning',
+    'alert',
+    'risk',
+    'threat',
+    'crisis',
     // Business negative
-    'cuts', 'layoffs', 'bankruptcy', 'closes', 'shutdown', 'struggles',
+    'cuts',
+    'layoffs',
+    'bankruptcy',
+    'closes',
+    'shutdown',
+    'struggles',
     // Legal
-    'lawsuit', 'sued', 'violation', 'recall', 'investigation', 'fraud',
+    'lawsuit',
+    'sued',
+    'violation',
+    'recall',
+    'investigation',
+    'fraud',
     // Agriculture/food specific
-    'contamination', 'outbreak', 'disease', 'pest', 'drought', 'shortage', 'spoiled'
+    'contamination',
+    'outbreak',
+    'disease',
+    'pest',
+    'drought',
+    'shortage',
+    'spoiled'
   ];
 
   const positiveHits = positives.some((word) => text.includes(word));

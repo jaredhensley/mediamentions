@@ -73,12 +73,13 @@ async function googleSearch(searchRequest, { maxResults }) {
 
   const allResults = [];
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
+    'User-Agent':
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    Accept: 'application/json, text/plain, */*',
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept-Encoding': 'gzip, deflate, br',
     'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache'
+    Pragma: 'no-cache'
   };
 
   if (providerConfig.googleReferer) {
@@ -129,7 +130,7 @@ async function googleSearch(searchRequest, { maxResults }) {
         if (errorBody.error?.message) {
           detail = errorBody.error.message;
         }
-      } catch (err) {
+      } catch (_err) {
         // ignore JSON parsing issues to avoid masking the original response error
       }
       throw new Error(`Google search failed: ${detail}`);

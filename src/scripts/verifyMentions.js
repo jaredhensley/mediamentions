@@ -39,7 +39,7 @@ function isValidUrl(url) {
       /^\[fe80:/i
     ];
 
-    if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+    if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
       return false;
     }
 
@@ -107,7 +107,9 @@ async function verifyWithBrowser(mention, browser) {
 
     // Set viewport and user agent
     await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+    await page.setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
 
     // Navigate with faster wait strategy
     await page.goto(link, {
@@ -116,12 +118,11 @@ async function verifyWithBrowser(mention, browser) {
     });
 
     // Wait a bit for dynamic content to load (configurable)
-    await new Promise(resolve => setTimeout(resolve, config.verification.dynamicContentDelayMs));
+    await new Promise((resolve) => setTimeout(resolve, config.verification.dynamicContentDelayMs));
 
     // Extract text content (return original, lowercase outside)
-    const rawTextContent = await page.evaluate(() => {
-      return document.body ? document.body.innerText : '';
-    });
+    // eslint-disable-next-line no-undef
+    const rawTextContent = await page.evaluate(() => document.body?.innerText || '');
 
     const textContent = rawTextContent.toLowerCase();
 
@@ -139,7 +140,7 @@ async function verifyWithBrowser(mention, browser) {
       '403 forbidden',
       'attention required'
     ];
-    const isBlockedPage = blockIndicators.some(indicator => textContent.includes(indicator));
+    const isBlockedPage = blockIndicators.some((indicator) => textContent.includes(indicator));
 
     // Check for suspiciously short content (block pages are usually small)
     const isSuspiciouslyShort = textContent.length < config.verification.minContentLength;
@@ -160,7 +161,6 @@ async function verifyWithBrowser(mention, browser) {
       reason: verified ? 'verified_browser' : 'name_not_found',
       error: null
     };
-
   } catch (error) {
     // Browser errors should go to manual review
     return {
@@ -211,12 +211,13 @@ async function verifyMention(mention, getBrowser = null) {
     // Try regular fetch first (faster)
     const response = await fetch(link, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
         'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        Pragma: 'no-cache'
       },
       redirect: 'follow',
       signal: AbortSignal.timeout(config.verification.fetchTimeoutMs)
@@ -277,15 +278,16 @@ async function verifyMention(mention, getBrowser = null) {
     const contentType = response.headers.get('content-type') || '';
 
     // Accept HTML and XHTML
-    const isHtmlContent = contentType.includes('text/html') ||
-                          contentType.includes('application/xhtml+xml');
+    const isHtmlContent =
+      contentType.includes('text/html') || contentType.includes('application/xhtml+xml');
 
     if (!isHtmlContent) {
       // PDFs and other documents can't be auto-verified but may be legitimate
-      const isDocument = contentType.includes('application/pdf') ||
-                         contentType.includes('application/msword') ||
-                         contentType.includes('application/vnd.openxmlformats') ||
-                         contentType.includes('application/vnd.ms-');
+      const isDocument =
+        contentType.includes('application/pdf') ||
+        contentType.includes('application/msword') ||
+        contentType.includes('application/vnd.openxmlformats') ||
+        contentType.includes('application/vnd.ms-');
       return {
         id,
         verified: isDocument ? null : 0,
@@ -315,7 +317,6 @@ async function verifyMention(mention, getBrowser = null) {
       reason: verified ? 'verified' : 'name_not_found',
       error: null
     };
-
   } catch (error) {
     // Try snippet fallback before going to manual review
     const snippetResult = trySnippetFallback();
@@ -351,7 +352,7 @@ async function verifyMentionWithRetry(mention, getBrowser) {
       'invalid_url',
       'not_html',
       'document_type',
-      'http_error_4xx'  // 4xx errors won't change on retry
+      'http_error_4xx' // 4xx errors won't change on retry
     ];
 
     if (result.verified === 1 || noRetryReasons.includes(result.reason)) {
@@ -368,7 +369,7 @@ async function verifyMentionWithRetry(mention, getBrowser) {
 
     // If this wasn't the last attempt, wait before retrying
     if (attempt < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, config.verification.retryDelayMs));
+      await new Promise((resolve) => setTimeout(resolve, config.verification.retryDelayMs));
     }
   }
 
@@ -390,7 +391,7 @@ async function verifyMentionWithRetry(mention, getBrowser) {
  * @param {number} concurrency - Max concurrent operations
  * @returns {Promise<Array>} - Results
  */
-async function processWithConcurrency(mentions, processFn, concurrency) {
+async function _processWithConcurrency(mentions, processFn, concurrency) {
   const results = [];
   let index = 0;
 
@@ -419,10 +420,10 @@ async function processWithConcurrency(mentions, processFn, concurrency) {
  */
 function updateVerificationInDb(result) {
   try {
-    runExecute(
-      'UPDATE mediaMentions SET verified = @p0 WHERE id = @p1',
-      [result.verified, result.id]
-    );
+    runExecute('UPDATE mediaMentions SET verified = @p0 WHERE id = @p1', [
+      result.verified,
+      result.id
+    ]);
     return true;
   } catch (error) {
     console.error(`Failed to update mention ${result.id}: ${error.message}`);
@@ -471,7 +472,7 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
   };
 
   // Count already verified first
-  const toVerify = mentions.filter(m => m.verified !== 1);
+  const toVerify = mentions.filter((m) => m.verified !== 1);
   results.already_verified = mentions.length - toVerify.length;
 
   // Log skipped mentions
@@ -488,7 +489,7 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
 
   // Lazy browser initialization with promise lock to prevent multiple launches
   let browser = null;
-  let browserPromise = null;  // Lock to prevent race condition
+  let browserPromise = null; // Lock to prevent race condition
   const getBrowser = async () => {
     // If browser already exists, return it
     if (browser) return browser;
@@ -502,16 +503,12 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
       try {
         browser = await puppeteer.launch({
           headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
-          ]
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
         return browser;
       } catch (error) {
         console.error('Failed to launch browser:', error.message);
-        browserPromise = null;  // Reset so next caller can retry
+        browserPromise = null; // Reset so next caller can retry
         return null;
       }
     })();
@@ -548,17 +545,27 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
 
       if (result.verified === 1) {
         results.verified++;
-        const method = result.reason === 'verified_browser' ? ' [BROWSER]' :
-                       result.reason === 'verified_snippet' ? ' [SNIPPET]' : '';
-        log(`[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ✓ VERIFIED${method}`);
+        const method =
+          result.reason === 'verified_browser'
+            ? ' [BROWSER]'
+            : result.reason === 'verified_snippet'
+              ? ' [SNIPPET]'
+              : '';
+        log(
+          `[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ✓ VERIFIED${method}`
+        );
       } else if (result.verified === null) {
         results.needs_review++;
         results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
-        log(`[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ⚠ NEEDS REVIEW (${result.reason})`);
+        log(
+          `[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ⚠ NEEDS REVIEW (${result.reason})`
+        );
       } else {
         results.failed++;
         results.errors[result.reason] = (results.errors[result.reason] || 0) + 1;
-        log(`[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ✗ FAILED (${result.reason})`);
+        log(
+          `[${index + 1}/${mentions.length}] ${truncateTitle(mention.title)} ✗ FAILED (${result.reason})`
+        );
       }
 
       // Broadcast verification result via WebSocket
@@ -582,7 +589,8 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
 
     // Concurrent processing with worker pool
     let currentIndex = 0;
-    const mentionsToProcess = mentions.map((m, i) => ({ mention: m, index: i }))
+    const mentionsToProcess = mentions
+      .map((m, i) => ({ mention: m, index: i }))
       .filter(({ mention }) => mention.verified !== 1);
 
     const worker = async () => {
@@ -594,7 +602,7 @@ async function verifyAllMentions({ silent = false, broadcast = !silent } = {}) {
         await processMention(mention, index);
 
         // Small delay between requests to avoid hammering servers
-        await new Promise(resolve => setTimeout(resolve, config.verification.rateLimitMs));
+        await new Promise((resolve) => setTimeout(resolve, config.verification.rateLimitMs));
       }
     };
 
@@ -655,7 +663,7 @@ async function main() {
 
 // Run if called directly
 if (require.main === module) {
-  main().catch(error => {
+  main().catch((error) => {
     console.error('Error:', error);
     process.exit(1);
   });

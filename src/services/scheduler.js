@@ -47,8 +47,7 @@ function logNextRun(task) {
       return;
     }
 
-    const nextDate =
-      typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
+    const nextDate = typeof next.toJSDate === 'function' ? next.toJSDate() : new Date(next);
 
     console.log(`[scheduler] next run scheduled for ${nextDate.toISOString()}`);
   } catch (err) {

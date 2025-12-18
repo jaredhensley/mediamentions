@@ -16,7 +16,10 @@ function formatNegatives(words = []) {
 }
 
 function formatContext(contextWords = []) {
-  const filtered = contextWords.filter(Boolean).map((word) => word.trim()).filter(Boolean);
+  const filtered = contextWords
+    .filter(Boolean)
+    .map((word) => word.trim())
+    .filter(Boolean);
   if (!filtered.length) return [];
   if (filtered.length === 1) return [quoteTerm(filtered[0])];
   return [`(${filtered.map(quoteTerm).join(' OR ')})`];

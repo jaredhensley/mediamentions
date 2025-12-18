@@ -10,7 +10,21 @@
     "scheduler": "node src/index.js",
     "scheduler:once": "node src/index.js --once",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\"",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "client/src/**/*.{ts,tsx}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -25,6 +39,12 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "jest": "^30.2.0"
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4"
   }
 }

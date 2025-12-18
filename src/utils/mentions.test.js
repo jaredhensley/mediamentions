@@ -28,24 +28,28 @@ describe('recordMentions', () => {
       }
       if (sql.includes('INSERT INTO mediaMentions')) {
         // Capture the INSERT and verify verified is null
-        return [{
-          id: 1,
-          title: 'Test Article',
-          verified: null // Should be null for pending review
-        }];
+        return [
+          {
+            id: 1,
+            title: 'Test Article',
+            verified: null // Should be null for pending review
+          }
+        ];
       }
       return [];
     });
 
-    const results = [{
-      title: 'Test Article',
-      url: 'https://example.com/article',
-      snippet: 'Test snippet',
-      source: 'example.com',
-      sentiment: 'neutral',
-      clientId: 1,
-      normalizedUrl: 'https://example.com/article'
-    }];
+    const results = [
+      {
+        title: 'Test Article',
+        url: 'https://example.com/article',
+        snippet: 'Test snippet',
+        source: 'example.com',
+        sentiment: 'neutral',
+        clientId: 1,
+        normalizedUrl: 'https://example.com/article'
+      }
+    ];
 
     const created = recordMentions(results, 'new');
 
@@ -53,7 +57,9 @@ describe('recordMentions', () => {
     expect(created[0].verified).toBeNull();
 
     // Verify the INSERT SQL includes verified field with null value
-    const insertCall = runQuery.mock.calls.find(call => call[0].includes('INSERT INTO mediaMentions'));
+    const insertCall = runQuery.mock.calls.find((call) =>
+      call[0].includes('INSERT INTO mediaMentions')
+    );
     expect(insertCall).toBeDefined();
     expect(insertCall[0]).toContain('verified');
     // The 11th parameter (index 10) should be null for verified
@@ -74,15 +80,17 @@ describe('recordMentions', () => {
       return [];
     });
 
-    const results = [{
-      title: 'Test Article',
-      url: 'https://example.com/article',
-      snippet: 'Test snippet',
-      source: 'example.com',
-      sentiment: 'neutral',
-      clientId: 1,
-      normalizedUrl: 'https://example.com/article'
-    }];
+    const results = [
+      {
+        title: 'Test Article',
+        url: 'https://example.com/article',
+        snippet: 'Test snippet',
+        source: 'example.com',
+        sentiment: 'neutral',
+        clientId: 1,
+        normalizedUrl: 'https://example.com/article'
+      }
+    ];
 
     recordMentions(results, 'new');
 
@@ -100,14 +108,16 @@ describe('recordMentions', () => {
       return [];
     });
 
-    const results = [{
-      title: 'Test Article',
-      url: 'https://example.com/article',
-      snippet: 'Test snippet',
-      source: 'example.com',
-      clientId: 1,
-      normalizedUrl: 'https://example.com/article'
-    }];
+    const results = [
+      {
+        title: 'Test Article',
+        url: 'https://example.com/article',
+        snippet: 'Test snippet',
+        source: 'example.com',
+        clientId: 1,
+        normalizedUrl: 'https://example.com/article'
+      }
+    ];
 
     const created = recordMentions(results, 'new');
 
@@ -177,7 +187,7 @@ describe('dedupeMentions', () => {
 
     expect(deduped).toHaveLength(3);
     expect(deduped[0].title).toBe('First');
-    expect(deduped.find(r => r.title === 'Duplicate')).toBeUndefined();
+    expect(deduped.find((r) => r.title === 'Duplicate')).toBeUndefined();
   });
 
   test('handles empty array', () => {

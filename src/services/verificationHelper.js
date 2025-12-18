@@ -19,9 +19,10 @@ async function runVerificationPass({ source = 'verification', jobLog = null } = 
   console.log(`\n${logPrefix} Starting automatic verification of new mentions...`);
 
   // Count total mentions to verify
-  const totalMentions = runQuery(
-    'SELECT COUNT(*) as count FROM mediaMentions WHERE verified IS NULL OR verified != 1'
-  )[0]?.count || 0;
+  const totalMentions =
+    runQuery(
+      'SELECT COUNT(*) as count FROM mediaMentions WHERE verified IS NULL OR verified != 1'
+    )[0]?.count || 0;
 
   verificationStatus.setVerifying(totalMentions);
 
@@ -33,7 +34,9 @@ async function runVerificationPass({ source = 'verification', jobLog = null } = 
     }
 
     verificationStatus.setComplete(verificationResults);
-    console.log(`${logPrefix} ✓ Completed: ${verificationResults.verified} verified, ${verificationResults.failed} failed`);
+    console.log(
+      `${logPrefix} ✓ Completed: ${verificationResults.verified} verified, ${verificationResults.failed} failed`
+    );
 
     return verificationResults;
   } catch (err) {

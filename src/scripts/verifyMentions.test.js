@@ -1,8 +1,4 @@
-const {
-  checkClientNameInContent,
-  isValidUrl,
-  truncateTitle
-} = require('./verifyMentions');
+const { checkClientNameInContent, isValidUrl, truncateTitle } = require('./verifyMentions');
 
 describe('verifyMentions module', () => {
   describe('isValidUrl', () => {
@@ -97,23 +93,26 @@ describe('verifyMentions module', () => {
 
     test('finds sweetpotato/sweet potato variations', () => {
       // Config has variation: sweetpotato <-> sweet potato
-      expect(checkClientNameInContent(
-        'north carolina sweet potato commission event',
-        'North Carolina Sweetpotato Commission'
-      )).toBe(true);
+      expect(
+        checkClientNameInContent(
+          'north carolina sweet potato commission event',
+          'North Carolina Sweetpotato Commission'
+        )
+      ).toBe(true);
 
-      expect(checkClientNameInContent(
-        'north carolina sweetpotato commission event',
-        'North Carolina Sweet Potato Commission'
-      )).toBe(true);
+      expect(
+        checkClientNameInContent(
+          'north carolina sweetpotato commission event',
+          'North Carolina Sweet Potato Commission'
+        )
+      ).toBe(true);
     });
 
     test('finds colombia/colombian variations', () => {
       // Config has variation: colombia -> colombian
-      expect(checkClientNameInContent(
-        'colombian avocado board announces',
-        'Colombia Avocado Board'
-      )).toBe(true);
+      expect(
+        checkClientNameInContent('colombian avocado board announces', 'Colombia Avocado Board')
+      ).toBe(true);
     });
 
     test('partial matches within words are found', () => {
@@ -186,7 +185,7 @@ describe('verifyMentions config integration', () => {
     expect(Array.isArray(variations)).toBe(true);
     expect(variations.length).toBeGreaterThan(0);
 
-    variations.forEach(v => {
+    variations.forEach((v) => {
       expect(v).toHaveProperty('from');
       expect(v).toHaveProperty('to');
       expect(typeof v.from).toBe('string');

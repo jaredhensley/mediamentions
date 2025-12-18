@@ -14,7 +14,9 @@ async function main() {
   console.log('Initializing database...');
   initializeDatabase();
 
-  console.log(`\nStarting RSS feed polling${skipVerification ? ' (verification disabled)' : ''}...\n`);
+  console.log(
+    `\nStarting RSS feed polling${skipVerification ? ' (verification disabled)' : ''}...\n`
+  );
 
   try {
     const result = await pollRssFeeds({ runVerification: !skipVerification });
@@ -28,7 +30,7 @@ async function main() {
     console.log(`Mentions created: ${result.mentionsCreated}`);
 
     if (result.verificationResults) {
-      console.log(`\nVerification Results:`);
+      console.log('\nVerification Results:');
       console.log(`  Verified: ${result.verificationResults.verified}`);
       console.log(`  Failed: ${result.verificationResults.failed}`);
       console.log(`  Needs Review: ${result.verificationResults.needsReview || 0}`);
@@ -41,8 +43,9 @@ async function main() {
       });
     }
 
-    console.log(`\nDuration: ${((new Date(result.finishedAt) - new Date(result.startedAt)) / 1000).toFixed(1)}s`);
-
+    console.log(
+      `\nDuration: ${((new Date(result.finishedAt) - new Date(result.startedAt)) / 1000).toFixed(1)}s`
+    );
   } catch (err) {
     console.error('Fatal error:', err.message);
     process.exit(1);

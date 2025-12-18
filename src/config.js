@@ -144,7 +144,9 @@ function validateConfig() {
     if (isProduction) {
       errors.push('API_KEY is required in production mode');
     } else {
-      warnings.push('API_KEY not set - authentication disabled (set NODE_ENV=production to enforce)');
+      warnings.push(
+        'API_KEY not set - authentication disabled (set NODE_ENV=production to enforce)'
+      );
     }
   }
 

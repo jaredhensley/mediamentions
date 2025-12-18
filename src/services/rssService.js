@@ -89,7 +89,10 @@ function extractLinkHref(xml) {
  */
 function extractTag(xml, tagName) {
   // Handle CDATA sections (with optional attributes on the tag)
-  const cdataRegex = new RegExp(`<${tagName}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`, 'i');
+  const cdataRegex = new RegExp(
+    `<${tagName}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`,
+    'i'
+  );
   const cdataMatch = xml.match(cdataRegex);
   if (cdataMatch) {
     return cdataMatch[1].trim();
@@ -131,7 +134,7 @@ function decodeHtmlEntities(str) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/<[^>]+>/g, ' ')  // Strip HTML tags
+    .replace(/<[^>]+>/g, ' ') // Strip HTML tags
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -164,7 +167,7 @@ async function fetchRssFeed(feedUrl) {
   const response = await fetch(feedUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; MediaMentions/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml'
+      Accept: 'application/rss+xml, application/xml, text/xml'
     }
   });
 
@@ -182,7 +185,7 @@ async function fetchRssFeed(feedUrl) {
  * @param {Object} client - Client object
  * @returns {Object} - Normalized result
  */
-function rssItemToResult(item, client) {
+function rssItemToResult(item, _client) {
   const publishedAt = item.pubDate ? new Date(item.pubDate).toISOString() : null;
 
   return {
@@ -200,7 +203,9 @@ function rssItemToResult(item, client) {
  * @returns {Array} - Clients with alertsRssFeedUrl set
  */
 function loadClientsWithRssFeeds() {
-  return runQuery('SELECT id, name, alertsRssFeedUrl FROM clients WHERE alertsRssFeedUrl IS NOT NULL AND alertsRssFeedUrl != "" ORDER BY id;');
+  return runQuery(
+    'SELECT id, name, alertsRssFeedUrl FROM clients WHERE alertsRssFeedUrl IS NOT NULL AND alertsRssFeedUrl != "" ORDER BY id;'
+  );
 }
 
 /**
@@ -247,7 +252,7 @@ async function pollRssFeeds({ runVerification = false } = {}) {
       console.log(`[rss] Found ${items.length} items in feed for ${client.name}`);
 
       // Convert RSS items to our result format
-      const results = items.map(item => {
+      const results = items.map((item) => {
         const baseResult = rssItemToResult(item, client);
         return normalizeResult(baseResult, client);
       });
@@ -262,7 +267,6 @@ async function pollRssFeeds({ runVerification = false } = {}) {
       if (created.length > 0) {
         console.log(`[rss] Created ${created.length} new mention(s) for ${client.name}`);
       }
-
     } catch (err) {
       console.warn(`[rss] ✗ Failed to poll feed for ${client.name}: ${err.message}`);
       jobLog.errors.push({ clientId: client.id, clientName: client.name, message: err.message });
@@ -277,7 +281,9 @@ async function pollRssFeeds({ runVerification = false } = {}) {
   jobLog.finishedAt = new Date().toISOString();
   jobLog.status = jobLog.errors.length ? 'completed_with_errors' : 'completed';
 
-  console.log(`[rss] Completed: ${jobLog.feedsPolled} feeds polled, ${jobLog.entriesFound} entries found, ${jobLog.mentionsCreated} mentions created`);
+  console.log(
+    `[rss] Completed: ${jobLog.feedsPolled} feeds polled, ${jobLog.entriesFound} entries found, ${jobLog.mentionsCreated} mentions created`
+  );
 
   return jobLog;
 }

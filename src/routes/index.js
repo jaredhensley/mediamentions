@@ -33,7 +33,11 @@ const {
 
 const listClients = createListHandler('clients');
 const getClient = createGetHandler('clients', 'Client');
-const updateClient = createUpdateHandler('clients', 'Client', updateClientSchema, ['name', 'contactEmail', 'alertsRssFeedUrl']);
+const updateClient = createUpdateHandler('clients', 'Client', updateClientSchema, [
+  'name',
+  'contactEmail',
+  'alertsRssFeedUrl'
+]);
 const deleteClient = createDeleteHandler('clients', 'Client');
 
 async function createClient(req, res) {
@@ -47,7 +51,12 @@ async function createClient(req, res) {
     const now = new Date().toISOString();
     const [client] = runQuery(
       'INSERT INTO clients (name, contactEmail, alertsRssFeedUrl, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p3) RETURNING *;',
-      [validation.data.name, validation.data.contactEmail, validation.data.alertsRssFeedUrl || null, now],
+      [
+        validation.data.name,
+        validation.data.contactEmail,
+        validation.data.alertsRssFeedUrl || null,
+        now
+      ]
     );
     sendJson(res, 201, client);
   } catch (error) {
@@ -59,9 +68,16 @@ async function createClient(req, res) {
 // PUBLICATION ROUTES
 // ============================================================================
 
-const listPublications = createListHandler('publications', { whereClause: "name != 'Unknown Source'" });
+const listPublications = createListHandler('publications', {
+  whereClause: "name != 'Unknown Source'"
+});
 const getPublication = createGetHandler('publications', 'Publication');
-const updatePublication = createUpdateHandler('publications', 'Publication', updatePublicationSchema, ['name', 'website']);
+const updatePublication = createUpdateHandler(
+  'publications',
+  'Publication',
+  updatePublicationSchema,
+  ['name', 'website']
+);
 const deletePublication = createDeleteHandler('publications', 'Publication');
 
 async function createPublication(req, res) {
@@ -75,7 +91,7 @@ async function createPublication(req, res) {
     const now = new Date().toISOString();
     const [publication] = runQuery(
       'INSERT INTO publications (name, website, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p2) RETURNING *;',
-      [validation.data.name, validation.data.website || null, now],
+      [validation.data.name, validation.data.website || null, now]
     );
     sendJson(res, 201, publication);
   } catch (error) {
@@ -88,10 +104,24 @@ async function createPublication(req, res) {
 // ============================================================================
 
 const getMediaMention = createGetHandler('mediaMentions', 'Media mention');
-const updateMediaMention = createUpdateHandler('mediaMentions', 'Media mention', updateMediaMentionSchema, [
-  'title', 'subjectMatter', 'mentionDate', 'reMentionDate', 'link',
-  'source', 'sentiment', 'status', 'clientId', 'publicationId', 'verified'
-]);
+const updateMediaMention = createUpdateHandler(
+  'mediaMentions',
+  'Media mention',
+  updateMediaMentionSchema,
+  [
+    'title',
+    'subjectMatter',
+    'mentionDate',
+    'reMentionDate',
+    'link',
+    'source',
+    'sentiment',
+    'status',
+    'clientId',
+    'publicationId',
+    'verified'
+  ]
+);
 const deleteMediaMention = createDeleteHandler('mediaMentions', 'Media mention');
 
 async function listMediaMentions(req, res) {
@@ -121,7 +151,7 @@ async function listMediaMentions(req, res) {
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const mentions = runQuery(
     `SELECT * FROM mediaMentions ${whereClause} ORDER BY mentionDate DESC, id DESC;`,
-    params,
+    params
   );
   sendJson(res, 200, mentions);
 }
@@ -150,8 +180,8 @@ async function createMediaMention(req, res) {
         d.status || 'new',
         d.clientId,
         d.publicationId,
-        now,
-      ],
+        now
+      ]
     );
     sendJson(res, 201, mention);
   } catch (error) {
@@ -165,7 +195,12 @@ async function createMediaMention(req, res) {
 
 const listFeedbackSummaries = createListHandler('feedbackSummaries');
 const getFeedbackSummary = createGetHandler('feedbackSummaries', 'Feedback summary');
-const updateFeedbackSummary = createUpdateHandler('feedbackSummaries', 'Feedback summary', updateFeedbackSummarySchema, ['clientId', 'summary', 'rating', 'period']);
+const updateFeedbackSummary = createUpdateHandler(
+  'feedbackSummaries',
+  'Feedback summary',
+  updateFeedbackSummarySchema,
+  ['clientId', 'summary', 'rating', 'period']
+);
 const deleteFeedbackSummary = createDeleteHandler('feedbackSummaries', 'Feedback summary');
 
 async function createFeedbackSummary(req, res) {
@@ -180,7 +215,7 @@ async function createFeedbackSummary(req, res) {
     const now = new Date().toISOString();
     const [summary] = runQuery(
       'INSERT INTO feedbackSummaries (clientId, summary, rating, period, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p4) RETURNING *;',
-      [d.clientId, d.summary, d.rating || null, d.period || null, now],
+      [d.clientId, d.summary, d.rating || null, d.period || null, now]
     );
     sendJson(res, 201, summary);
   } catch (error) {
@@ -194,7 +229,13 @@ async function createFeedbackSummary(req, res) {
 
 const listSearchJobs = createListHandler('searchJobs');
 const getSearchJob = createGetHandler('searchJobs', 'Search job');
-const updateSearchJob = createUpdateHandler('searchJobs', 'Search job', updateSearchJobSchema, ['clientId', 'query', 'status', 'scheduledAt', 'completedAt']);
+const updateSearchJob = createUpdateHandler('searchJobs', 'Search job', updateSearchJobSchema, [
+  'clientId',
+  'query',
+  'status',
+  'scheduledAt',
+  'completedAt'
+]);
 const deleteSearchJob = createDeleteHandler('searchJobs', 'Search job');
 
 async function createSearchJob(req, res) {
@@ -209,7 +250,7 @@ async function createSearchJob(req, res) {
     const now = new Date().toISOString();
     const [job] = runQuery(
       'INSERT INTO searchJobs (clientId, query, status, scheduledAt, completedAt, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p5) RETURNING *;',
-      [d.clientId, d.query, d.status || 'pending', d.scheduledAt, d.completedAt || null, now],
+      [d.clientId, d.query, d.status || 'pending', d.scheduledAt, d.completedAt || null, now]
     );
     sendJson(res, 201, job);
   } catch (error) {
@@ -247,7 +288,7 @@ function buildExcelXml(rows, { clientName } = {}) {
         </Borders>
       </Style>
       <Style ss:ID="Date" ss:Parent="Cell">
-        <NumberFormat ss:Format="mmm d, yyyy\ h:mm\ AM/PM" />
+        <NumberFormat ss:Format="mmm d, yyyy h:mm AM/PM" />
       </Style>
       <Style ss:ID="Link" ss:Parent="Cell">
         <Font ss:Color="#0563C1" ss:Underline="Single" />
@@ -260,7 +301,7 @@ function buildExcelXml(rows, { clientName } = {}) {
     { title: 'Title', width: 300, style: 'Cell' },
     { title: 'Topic', width: 160, style: 'Cell' },
     { title: 'Additional Mentions', width: 160, style: 'Cell' },
-    { title: 'Link', width: 220, style: 'Link' },
+    { title: 'Link', width: 220, style: 'Link' }
   ];
 
   const header = `<?xml version="1.0"?>
@@ -274,14 +315,17 @@ function buildExcelXml(rows, { clientName } = {}) {
   const footer = '</Table></Worksheet></Workbook>';
   const titleRow = clientName
     ? `<Row><Cell ss:MergeAcross="${columns.length - 1}" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(
-        `${clientName} Media Mentions`,
+        `${clientName} Media Mentions`
       )}</Data></Cell></Row>`
     : '';
   const columnDefs = columns
     .map((col) => `<Column ss:AutoFitWidth="0" ss:Width="${col.width}" />`)
     .join('');
   const headerRow = `<Row>${columns
-    .map((col) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(col.title)}</Data></Cell>`)
+    .map(
+      (col) =>
+        `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(col.title)}</Data></Cell>`
+    )
     .join('')}</Row>`;
   const dataRows = rows
     .map((row) => {
@@ -291,7 +335,7 @@ function buildExcelXml(rows, { clientName } = {}) {
         row.title || '',
         row.subjectMatter || '',
         formatDisplayDate(row.reMentionDate) || '',
-        row.link || '',
+        row.link || ''
       ];
 
       return `<Row>${values
@@ -337,12 +381,12 @@ async function exportMentions(_req, res, params) {
      LEFT JOIN publications p ON mm.publicationId = p.id
      ${whereClause}
      ORDER BY mm.mentionDate DESC, mm.id DESC;`,
-    values,
+    values
   );
   const xml = buildExcelXml(rows, { clientName: client?.name });
   res.writeHead(200, {
     'Content-Type': 'application/vnd.ms-excel',
-    'Content-Disposition': `attachment; filename="media-mentions-${client?.name || clientId}.xls"`,
+    'Content-Disposition': `attachment; filename="media-mentions-${client?.name || clientId}.xls"`
   });
   res.end(xml);
 }
@@ -369,9 +413,18 @@ function exportFalsePositives(req, res) {
     ORDER BY m.createdAt DESC
   `);
 
-  const headers = ['Client', 'Title', 'URL', 'Source', 'Mention Date', 'Created At', 'Verified', 'ID'];
+  const headers = [
+    'Client',
+    'Title',
+    'URL',
+    'Source',
+    'Mention Date',
+    'Created At',
+    'Verified',
+    'ID'
+  ];
   const escapeCSV = (value) => {
-    if (value == null) return '';
+    if (value === null || value === undefined) return '';
     const str = String(value);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
@@ -380,17 +433,12 @@ function exportFalsePositives(req, res) {
   };
 
   const rows = [headers.join(',')];
-  mentions.forEach(m => {
-    rows.push([
-      m.clientName,
-      m.title,
-      m.link,
-      m.source,
-      m.mentionDate,
-      m.createdAt,
-      m.verified,
-      m.id
-    ].map(escapeCSV).join(','));
+  mentions.forEach((m) => {
+    rows.push(
+      [m.clientName, m.title, m.link, m.source, m.mentionDate, m.createdAt, m.verified, m.id]
+        .map(escapeCSV)
+        .join(',')
+    );
   });
 
   const csv = rows.join('\n');
@@ -398,7 +446,7 @@ function exportFalsePositives(req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/csv',
     'Content-Disposition': `attachment; filename="false-positives-${new Date().toISOString().split('T')[0]}.csv"`,
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': '*'
   });
   res.end(csv);
 }
@@ -489,7 +537,7 @@ function getRssFeedStatus(req, res) {
   const clients = loadClientsWithRssFeeds();
   sendJson(res, 200, {
     clientsWithFeeds: clients.length,
-    clients: clients.map(c => ({
+    clients: clients.map((c) => ({
       id: c.id,
       name: c.name,
       feedUrl: c.alertsRssFeedUrl
@@ -543,7 +591,7 @@ const routes = [
   { method: 'POST', pattern: '/admin/pending-review/:id/reject', handler: rejectPendingReview },
 
   { method: 'GET', pattern: '/admin/rss-feeds', handler: getRssFeedStatus },
-  { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll },
+  { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll }
 ];
 
 module.exports = {

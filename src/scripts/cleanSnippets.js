@@ -5,7 +5,9 @@ function cleanExistingSnippets() {
   console.log('Starting to clean existing subjectMatter fields...\n');
 
   // Get all mentions with subjectMatter
-  const mentions = runQuery('SELECT id, subjectMatter FROM mediaMentions WHERE subjectMatter IS NOT NULL;');
+  const mentions = runQuery(
+    'SELECT id, subjectMatter FROM mediaMentions WHERE subjectMatter IS NOT NULL;'
+  );
 
   console.log(`Found ${mentions.length} mentions to process`);
 
@@ -35,7 +37,7 @@ function cleanExistingSnippets() {
     }
   }
 
-  console.log(`\n✓ Cleaning complete!`);
+  console.log('\n✓ Cleaning complete!');
   console.log(`  Updated: ${updatedCount}`);
   console.log(`  Unchanged: ${unchangedCount}`);
   console.log(`  Total: ${mentions.length}`);

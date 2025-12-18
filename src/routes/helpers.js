@@ -14,7 +14,7 @@ const { validate, idParamSchema } = require('../schemas');
  * @returns {Function} Route handler
  */
 function createGetHandler(tableName, resourceName) {
-  return async function(_req, res, params) {
+  return async function (_req, res, params) {
     const validation = validate(idParamSchema, params);
     if (!validation.success) {
       sendJson(res, 400, { error: validation.error });
@@ -38,7 +38,7 @@ function createGetHandler(tableName, resourceName) {
  * @returns {Function} Route handler
  */
 function createUpdateHandler(tableName, resourceName, updateSchema, allowedKeys) {
-  return async function(req, res, params) {
+  return async function (req, res, params) {
     const idValidation = validate(idParamSchema, params);
     if (!idValidation.success) {
       sendJson(res, 400, { error: idValidation.error });
@@ -57,7 +57,7 @@ function createUpdateHandler(tableName, resourceName, updateSchema, allowedKeys)
     const assignment = keys.map((key, idx) => `${key}=@p${idx}`).join(', ');
     const [item] = runQuery(
       `UPDATE ${tableName} SET ${assignment} WHERE id=@p${values.length - 1} RETURNING *;`,
-      values,
+      values
     );
     if (!item) {
       sendJson(res, 404, { error: `${resourceName} not found` });
@@ -74,13 +74,15 @@ function createUpdateHandler(tableName, resourceName, updateSchema, allowedKeys)
  * @returns {Function} Route handler
  */
 function createDeleteHandler(tableName, resourceName) {
-  return async function(_req, res, params) {
+  return async function (_req, res, params) {
     const validation = validate(idParamSchema, params);
     if (!validation.success) {
       sendJson(res, 400, { error: validation.error });
       return;
     }
-    const [item] = runQuery(`DELETE FROM ${tableName} WHERE id=@p0 RETURNING *;`, [validation.data.id]);
+    const [item] = runQuery(`DELETE FROM ${tableName} WHERE id=@p0 RETURNING *;`, [
+      validation.data.id
+    ]);
     if (!item) {
       sendJson(res, 404, { error: `${resourceName} not found` });
       return;
@@ -99,7 +101,7 @@ function createDeleteHandler(tableName, resourceName) {
  */
 function createListHandler(tableName, { whereClause = '', orderBy = 'id' } = {}) {
   const where = whereClause ? `WHERE ${whereClause}` : '';
-  return async function(_req, res) {
+  return async function (_req, res) {
     const items = runQuery(`SELECT * FROM ${tableName} ${where} ORDER BY ${orderBy};`);
     sendJson(res, 200, items);
   };

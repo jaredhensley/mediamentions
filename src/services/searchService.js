@@ -18,7 +18,7 @@ function buildQueries(client, profile) {
 
   // If client has priority publications, add a site-restricted query
   if (profile.priorityPublications && profile.priorityPublications.length > 0) {
-    const siteRestrict = profile.priorityPublications.map(s => `site:${s}`).join(' OR ');
+    const siteRestrict = profile.priorityPublications.map((s) => `site:${s}`).join(' OR ');
     const clientName = profile.searchTerms || client.name;
     // Use just the full name for site-restricted query (no abbreviations to avoid noise)
     const fullName = clientName.split(' OR ')[0].replace(/"/g, '');
@@ -45,13 +45,26 @@ async function runProvider(providerName, searchRequest, jobLog) {
   const query = typeof searchRequest === 'string' ? searchRequest : searchRequest.query;
   const label = typeof searchRequest === 'object' ? searchRequest.label : null;
   try {
-    const results = await provider(searchRequest, { maxResults: searchConfig.maxResultsPerProvider });
-    jobLog.providerRuns.push({ provider: providerName, query, label, status: 'success', results: results.length });
+    const results = await provider(searchRequest, {
+      maxResults: searchConfig.maxResultsPerProvider
+    });
+    jobLog.providerRuns.push({
+      provider: providerName,
+      query,
+      label,
+      status: 'success',
+      results: results.length
+    });
     return results;
   } catch (err) {
     console.warn(`[providers] ${providerName} ✗ failed for "${query}": ${err.message}`);
     jobLog.errors.push({ provider: providerName, query, message: err.message });
-    jobLog.providerRuns.push({ provider: providerName, query, status: 'failed', error: err.message });
+    jobLog.providerRuns.push({
+      provider: providerName,
+      query,
+      status: 'failed',
+      error: err.message
+    });
     return [];
   }
 }

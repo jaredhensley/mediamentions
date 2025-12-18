@@ -6,7 +6,6 @@ const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
 
 function log(msg) {
-  // eslint-disable-next-line no-console
   console.log(`[dev] ${msg}`);
 }
 
@@ -14,15 +13,19 @@ function seedIfEmpty() {
   seedDefaultClients({ log });
   seedDefaultPublications({ log });
 
-  const [{ count: clientCount } = { count: 0 }] = runQuery('SELECT COUNT(*) as count FROM clients;');
-  const [{ count: publicationCount } = { count: 0 }] = runQuery(
-    'SELECT COUNT(*) as count FROM publications;',
+  const [{ count: clientCount } = { count: 0 }] = runQuery(
+    'SELECT COUNT(*) as count FROM clients;'
   );
-  const [{ count: mentionCount } = { count: 0 }] = runQuery('SELECT COUNT(*) as count FROM mediaMentions;');
+  const [{ count: publicationCount } = { count: 0 }] = runQuery(
+    'SELECT COUNT(*) as count FROM publications;'
+  );
+  const [{ count: mentionCount } = { count: 0 }] = runQuery(
+    'SELECT COUNT(*) as count FROM mediaMentions;'
+  );
 
   if (clientCount || publicationCount || mentionCount) {
     log(
-      `Skipping sample seed because existing data was detected (clients: ${clientCount}, publications: ${publicationCount}, mentions: ${mentionCount}).`,
+      `Skipping sample seed because existing data was detected (clients: ${clientCount}, publications: ${publicationCount}, mentions: ${mentionCount}).`
     );
     return;
   }
@@ -30,18 +33,25 @@ function seedIfEmpty() {
   const now = new Date().toISOString();
   const sampleClientName = defaultClients[0].name;
   const [client] =
-    runQuery('SELECT * FROM clients WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [sampleClientName]) || [];
+    runQuery('SELECT * FROM clients WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [sampleClientName]) ||
+    [];
 
   if (!client) {
-    throw new Error(`Expected default client "${sampleClientName}" to be seeded before sample data.`);
+    throw new Error(
+      `Expected default client "${sampleClientName}" to be seeded before sample data.`
+    );
   }
 
   const samplePublicationName = defaultPublications[0].name;
   const [publication] =
-    runQuery('SELECT * FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [samplePublicationName]) || [];
+    runQuery('SELECT * FROM publications WHERE LOWER(name) = LOWER(@p0) LIMIT 1;', [
+      samplePublicationName
+    ]) || [];
 
   if (!publication) {
-    throw new Error(`Expected default publication "${samplePublicationName}" to be seeded before sample data.`);
+    throw new Error(
+      `Expected default publication "${samplePublicationName}" to be seeded before sample data.`
+    );
   }
 
   runQuery(
@@ -53,8 +63,8 @@ function seedIfEmpty() {
       defaultPublications[0].website || 'https://example.com/launch',
       client.id,
       publication.id,
-      now,
-    ],
+      now
+    ]
   );
 
   log('Seeded sample client, publication, and media mention into an empty database.');
@@ -75,6 +85,6 @@ function seedIfEmpty() {
 
   log('Starting API server with CORS enabled...');
   // Requiring server starts the HTTP listener.
-  // eslint-disable-next-line global-require
+
   require('./server');
 })();

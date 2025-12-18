@@ -1,5 +1,5 @@
-const { extractDomain } = require("./mentions");
-const { config } = require("../config");
+const { extractDomain } = require('./mentions');
+const { config } = require('../config');
 
 /**
  * Generate common variations of a client name for fuzzy matching
@@ -74,7 +74,7 @@ function isNonEditorialPattern(snippet) {
     /supporter(?:s)?[\s:]+/i,
     /supporter(?:s)? include/i,
     /founding partner/i,
-    /\bthanks?\s+to\s+(?:our\s+)?sponsor/i,
+    /\bthanks?\s+to\s+(?:our\s+)?sponsor/i
   ];
 
   // Directory/listing patterns
@@ -83,7 +83,7 @@ function isNonEditorialPattern(snippet) {
     /contact us|email|location/i,
     /\d{3}[-.\s]\d{3}[-.\s]\d{4}/, // phone numbers
     /\b\d{5}\b/, // zip codes
-    /^(?:about|contact|location|address|hours)/i,
+    /^(?:about|contact|location|address|hours)/i
   ];
 
   // Generic page patterns (events, marketing, navigation)
@@ -94,7 +94,7 @@ function isNonEditorialPattern(snippet) {
     /^about\s*[-|]?/i,
     /^contact\s*[-|]?/i,
     /^upcoming events/i,
-    /^calendar/i,
+    /^calendar/i
   ];
 
   // Label-only patterns (no verbs or editorial content)
@@ -102,7 +102,7 @@ function isNonEditorialPattern(snippet) {
     /^[^-]+ - homepage$/i,
     /^[^-]+ inc\.?$/i,
     /^[^-]+ logo$/i,
-    /^about [^-]+$/i,
+    /^about [^-]+$/i
   ];
 
   // Check for sponsor patterns
@@ -184,7 +184,7 @@ function hasEditorialLanguage(snippet) {
     /\bhighlighted?\b/,
     /\bspotlighted?\b/,
     /\bprofile(?:d|s)?\b/,
-    /\binterview(?:ed|s)?\b/,
+    /\binterview(?:ed|s)?\b/
   ];
 
   for (const pattern of editorialPatterns) {
@@ -195,7 +195,10 @@ function hasEditorialLanguage(snippet) {
 
   // Check if snippet has sentence structure (contains verbs and is not just a list)
   // Look for common verb forms
-  const hasVerb = /\b(?:is|are|was|were|has|have|had|will|would|can|could|may|might|should|must|do|does|did)\b/i.test(snippet);
+  const hasVerb =
+    /\b(?:is|are|was|were|has|have|had|will|would|can|could|may|might|should|must|do|does|did)\b/i.test(
+      snippet
+    );
   const hasSentence = snippet.includes('.') || snippet.includes(',');
   const notJustList = !/^[A-Z][a-z]+(?:,\s+[A-Z][a-z]+)*\.?$/i.test(snippet.trim());
 
@@ -223,7 +226,9 @@ function extractSnippetDate(snippet) {
   }
 
   // Pattern 2: "3 days ago —" or "2 weeks ago —"
-  const relativeMatch = snippet.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago\s*[—\-–]/i);
+  const relativeMatch = snippet.match(
+    /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago\s*[—\-–]/i
+  );
   if (relativeMatch) {
     const [, amount, unit] = relativeMatch;
     const now = new Date();
@@ -271,10 +276,10 @@ function isCategoryPage(url) {
     /\/resources$/,
     /\?category=/,
     /\?tag=/,
-    /\?topic=/,
+    /\?topic=/
   ];
 
-  return categoryPatterns.some(pattern => pattern.test(urlLower));
+  return categoryPatterns.some((pattern) => pattern.test(urlLower));
 }
 
 /**
@@ -304,28 +309,24 @@ const SOCIAL_MEDIA_DOMAINS = config.filters.socialMediaDomains;
  */
 function filterResultsForClient(results, profile, client) {
   const nameVariations = getNameVariations(client.name);
-  const excludeWords = (profile.excludeWords || []).map((word) =>
-    word.toLowerCase()
-  );
-  const excludeDomains = (profile.ownDomains || []).map((domain) =>
-    domain.toLowerCase()
-  );
+  const excludeWords = (profile.excludeWords || []).map((word) => word.toLowerCase());
+  const excludeDomains = (profile.ownDomains || []).map((domain) => domain.toLowerCase());
 
   const rejectionLog = [];
 
   // Calculate the threshold for article dates (configurable, default 180 days)
   const now = new Date();
   const articleAgeDays = config.filters.articleAgeDays;
-  const dateThreshold = new Date(now.getTime() - (articleAgeDays * 24 * 60 * 60 * 1000));
+  const dateThreshold = new Date(now.getTime() - articleAgeDays * 24 * 60 * 60 * 1000);
 
   const filtered = results.filter((result) => {
-    const title = result.title || "";
-    const snippet = result.snippet || "";
+    const title = result.title || '';
+    const snippet = result.snippet || '';
     const titleLower = title.toLowerCase();
     const snippetLower = snippet.toLowerCase();
 
     // Check if name appears in snippet (for diagnostic logging)
-    const nameInSnippet = nameVariations.some(variant => snippetLower.includes(variant));
+    const nameInSnippet = nameVariations.some((variant) => snippetLower.includes(variant));
 
     // RULE 0: Article date must be within 180-day window
     // This catches aggregator sites hosting old articles
@@ -402,7 +403,7 @@ function filterResultsForClient(results, profile, client) {
 
     // RULE 2: Name MUST appear in snippet (hard requirement for Google Search phase)
     // The snippet is the actual content excerpt - if client name appears there, it's a real mention
-    const nameInTitle = nameVariations.some(variant => titleLower.includes(variant));
+    const nameInTitle = nameVariations.some((variant) => titleLower.includes(variant));
 
     if (!nameInSnippet) {
       rejectionLog.push({
@@ -444,8 +445,11 @@ function filterResultsForClient(results, profile, client) {
     }
 
     // RULE 4: Title must have substance (not just generic LinkedIn/social media titles)
-    const titleTooGeneric = /^[^|]+\s*\|\s*(LinkedIn|Facebook|Twitter|Instagram)$/i.test(title.trim());
-    const titleTooShort = title.trim().length < 5 || title.trim() === '|' || /^\s*\|\s*\w+\s*$/i.test(title.trim());
+    const titleTooGeneric = /^[^|]+\s*\|\s*(LinkedIn|Facebook|Twitter|Instagram)$/i.test(
+      title.trim()
+    );
+    const titleTooShort =
+      title.trim().length < 5 || title.trim() === '|' || /^\s*\|\s*\w+\s*$/i.test(title.trim());
     if (titleTooGeneric || titleTooShort) {
       rejectionLog.push({
         reason: 'title_too_generic_or_short',

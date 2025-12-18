@@ -6,9 +6,11 @@ const { z } = require('zod');
 
 // Common refinements
 const positiveInt = z.coerce.number().int().positive();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/, 'Invalid date format');
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/, 'Invalid date format');
 const email = z.string().email();
-const url = z.string().url().optional().or(z.literal(''));
+const _url = z.string().url().optional().or(z.literal('')); // Reserved for future use
 
 // Client schemas
 const createClientSchema = z.object({
@@ -17,13 +19,16 @@ const createClientSchema = z.object({
   alertsRssFeedUrl: z.string().url().optional().nullable()
 });
 
-const updateClientSchema = z.object({
-  name: z.string().min(1).optional(),
-  contactEmail: email.optional(),
-  alertsRssFeedUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional()
-}).partial().refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
+const updateClientSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    contactEmail: email.optional(),
+    alertsRssFeedUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional()
+  })
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided'
+  });
 
 // Publication schemas
 const createPublicationSchema = z.object({
@@ -31,12 +36,14 @@ const createPublicationSchema = z.object({
   website: z.string().optional().nullable()
 });
 
-const updatePublicationSchema = z.object({
-  name: z.string().min(1).optional(),
-  website: z.string().optional().nullable()
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
+const updatePublicationSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    website: z.string().optional().nullable()
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided'
+  });
 
 // Media Mention schemas
 const sentimentEnum = z.enum(['positive', 'negative', 'neutral']).optional().nullable();
@@ -55,21 +62,23 @@ const createMediaMentionSchema = z.object({
   publicationId: positiveInt
 });
 
-const updateMediaMentionSchema = z.object({
-  title: z.string().min(1).optional(),
-  subjectMatter: z.string().optional(),
-  mentionDate: isoDate.optional(),
-  reMentionDate: isoDate.optional().nullable(),
-  link: z.string().optional(),
-  source: z.string().optional().nullable(),
-  sentiment: sentimentEnum,
-  status: statusEnum,
-  clientId: positiveInt.optional(),
-  publicationId: positiveInt.optional(),
-  verified: z.number().int().min(0).max(1).optional()
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
+const updateMediaMentionSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    subjectMatter: z.string().optional(),
+    mentionDate: isoDate.optional(),
+    reMentionDate: isoDate.optional().nullable(),
+    link: z.string().optional(),
+    source: z.string().optional().nullable(),
+    sentiment: sentimentEnum,
+    status: statusEnum,
+    clientId: positiveInt.optional(),
+    publicationId: positiveInt.optional(),
+    verified: z.number().int().min(0).max(1).optional()
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided'
+  });
 
 // Media Mentions list query params
 const listMediaMentionsSchema = z.object({
@@ -88,17 +97,22 @@ const createFeedbackSummarySchema = z.object({
   period: z.string().optional().nullable()
 });
 
-const updateFeedbackSummarySchema = z.object({
-  clientId: positiveInt.optional(),
-  summary: z.string().min(1).optional(),
-  rating: z.coerce.number().int().min(1).max(5).optional().nullable(),
-  period: z.string().optional().nullable()
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
+const updateFeedbackSummarySchema = z
+  .object({
+    clientId: positiveInt.optional(),
+    summary: z.string().min(1).optional(),
+    rating: z.coerce.number().int().min(1).max(5).optional().nullable(),
+    period: z.string().optional().nullable()
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided'
+  });
 
 // Search Job schemas
-const searchJobStatusEnum = z.enum(['pending', 'running', 'completed', 'failed']).optional().default('pending');
+const searchJobStatusEnum = z
+  .enum(['pending', 'running', 'completed', 'failed'])
+  .optional()
+  .default('pending');
 
 const createSearchJobSchema = z.object({
   clientId: positiveInt,
@@ -108,15 +122,17 @@ const createSearchJobSchema = z.object({
   completedAt: isoDate.optional().nullable()
 });
 
-const updateSearchJobSchema = z.object({
-  clientId: positiveInt.optional(),
-  query: z.string().min(1).optional(),
-  status: searchJobStatusEnum,
-  scheduledAt: isoDate.optional(),
-  completedAt: isoDate.optional().nullable()
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided'
-});
+const updateSearchJobSchema = z
+  .object({
+    clientId: positiveInt.optional(),
+    query: z.string().min(1).optional(),
+    status: searchJobStatusEnum,
+    scheduledAt: isoDate.optional(),
+    completedAt: isoDate.optional().nullable()
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided'
+  });
 
 // URL param schemas
 const idParamSchema = z.object({
@@ -136,7 +152,8 @@ function validate(schema, data) {
   }
   // Zod v3 uses .issues, but .errors is an alias; handle both for safety
   const issues = result.error?.issues || result.error?.errors || [];
-  const errors = issues.map(e => `${e.path?.join('.') || ''}: ${e.message}`).join(', ') || 'Validation failed';
+  const errors =
+    issues.map((e) => `${e.path?.join('.') || ''}: ${e.message}`).join(', ') || 'Validation failed';
   return { success: false, error: errors };
 }
 

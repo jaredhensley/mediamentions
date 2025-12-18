@@ -6,9 +6,15 @@ describe('filterResultsForClient', () => {
   test('filters results that do not contain client name in title or snippet', () => {
     const profile = {};
     const results = [
-      { title: 'Article about Bushwick Commission', snippet: 'The Bushwick Commission announced new partnership today' },
+      {
+        title: 'Article about Bushwick Commission',
+        snippet: 'The Bushwick Commission announced new partnership today'
+      },
       { title: 'Unrelated article', snippet: 'No mention of client' },
-      { title: 'Another story', snippet: 'Bushwick Commission expanded operations said spokesperson' }
+      {
+        title: 'Another story',
+        snippet: 'Bushwick Commission expanded operations said spokesperson'
+      }
     ];
 
     const filtered = filterResultsForClient(results, profile, client);
@@ -34,8 +40,14 @@ describe('filterResultsForClient', () => {
       requireContextMatch: true
     };
     const results = [
-      { title: 'Bushwick Commission produce news', snippet: 'Bushwick Commission announced new produce initiative' },
-      { title: 'Bushwick Commission update', snippet: 'Bushwick Commission reported general update' }
+      {
+        title: 'Bushwick Commission produce news',
+        snippet: 'Bushwick Commission announced new produce initiative'
+      },
+      {
+        title: 'Bushwick Commission update',
+        snippet: 'Bushwick Commission reported general update'
+      }
     ];
 
     const filtered = filterResultsForClient(results, profile, client);

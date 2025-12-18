@@ -8,7 +8,8 @@ const fs = require('fs');
 const path = require('path');
 
 /** @type {string} Path to the SQLite database file */
-const databasePath = process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
+const databasePath =
+  process.env.DATABASE_URL || path.join(__dirname, '..', 'data', 'mediamentions.db');
 
 /**
  * Ensure a column exists in a table, adding it if not present
@@ -173,10 +174,10 @@ function initializeDatabase() {
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_mentions_url_client_unique ON mediaMentions(link, clientId);'
   ];
 
-  indices.forEach(sql => {
+  indices.forEach((sql) => {
     try {
       runExecute(sql);
-    } catch (err) {
+    } catch (_err) {
       // Index might already exist, ignore
     }
   });
@@ -186,5 +187,5 @@ module.exports = {
   initializeDatabase,
   runQuery,
   runExecute,
-  databasePath,
+  databasePath
 };
