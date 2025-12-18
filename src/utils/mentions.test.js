@@ -1,4 +1,126 @@
-const { extractDomain, dedupeMentions, cleanSnippet } = require('./mentions');
+const { extractDomain, dedupeMentions, cleanSnippet, recordMentions } = require('./mentions');
+
+// Mock the database and websocket modules
+jest.mock('../db', () => ({
+  runQuery: jest.fn()
+}));
+
+jest.mock('../services/websocket', () => ({
+  broadcastNewMention: jest.fn()
+}));
+
+const { runQuery } = require('../db');
+const { broadcastNewMention } = require('../services/websocket');
+
+describe('recordMentions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('creates mentions with verified = null (pending review)', () => {
+    // Mock: no existing mentions
+    runQuery.mockImplementation((sql) => {
+      if (sql.includes('SELECT link FROM mediaMentions')) {
+        return []; // No existing mentions
+      }
+      if (sql.includes('SELECT id FROM publications WHERE LOWER(website)')) {
+        return [{ id: 1 }]; // Publication exists
+      }
+      if (sql.includes('INSERT INTO mediaMentions')) {
+        // Capture the INSERT and verify verified is null
+        return [{
+          id: 1,
+          title: 'Test Article',
+          verified: null // Should be null for pending review
+        }];
+      }
+      return [];
+    });
+
+    const results = [{
+      title: 'Test Article',
+      url: 'https://example.com/article',
+      snippet: 'Test snippet',
+      source: 'example.com',
+      sentiment: 'neutral',
+      clientId: 1,
+      normalizedUrl: 'https://example.com/article'
+    }];
+
+    const created = recordMentions(results, 'new');
+
+    expect(created).toHaveLength(1);
+    expect(created[0].verified).toBeNull();
+
+    // Verify the INSERT SQL includes verified field with null value
+    const insertCall = runQuery.mock.calls.find(call => call[0].includes('INSERT INTO mediaMentions'));
+    expect(insertCall).toBeDefined();
+    expect(insertCall[0]).toContain('verified');
+    // The 11th parameter (index 10) should be null for verified
+    expect(insertCall[1][10]).toBeNull();
+  });
+
+  test('broadcasts new mention after creation', () => {
+    runQuery.mockImplementation((sql) => {
+      if (sql.includes('SELECT link FROM mediaMentions')) {
+        return [];
+      }
+      if (sql.includes('SELECT id FROM publications')) {
+        return [{ id: 1 }];
+      }
+      if (sql.includes('INSERT INTO mediaMentions')) {
+        return [{ id: 1, title: 'Test Article', verified: null }];
+      }
+      return [];
+    });
+
+    const results = [{
+      title: 'Test Article',
+      url: 'https://example.com/article',
+      snippet: 'Test snippet',
+      source: 'example.com',
+      sentiment: 'neutral',
+      clientId: 1,
+      normalizedUrl: 'https://example.com/article'
+    }];
+
+    recordMentions(results, 'new');
+
+    expect(broadcastNewMention).toHaveBeenCalledTimes(1);
+    expect(broadcastNewMention).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, verified: null })
+    );
+  });
+
+  test('skips duplicate mentions', () => {
+    runQuery.mockImplementation((sql) => {
+      if (sql.includes('SELECT link FROM mediaMentions')) {
+        return [{ link: 'https://example.com/article' }]; // Already exists
+      }
+      return [];
+    });
+
+    const results = [{
+      title: 'Test Article',
+      url: 'https://example.com/article',
+      snippet: 'Test snippet',
+      source: 'example.com',
+      clientId: 1,
+      normalizedUrl: 'https://example.com/article'
+    }];
+
+    const created = recordMentions(results, 'new');
+
+    expect(created).toHaveLength(0);
+    expect(broadcastNewMention).not.toHaveBeenCalled();
+  });
+
+  test('handles empty results array', () => {
+    const created = recordMentions([], 'new');
+    expect(created).toHaveLength(0);
+    expect(runQuery).not.toHaveBeenCalled();
+  });
+});
 
 describe('cleanSnippet', () => {
   test('removes "X hours ago" prefix', () => {

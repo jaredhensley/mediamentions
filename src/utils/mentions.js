@@ -88,7 +88,7 @@ function recordMentions(results, status) {
 
     const cleanedSnippet = cleanSnippet(result.snippet);
     const [mention] = runQuery(
-      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p10) RETURNING *;',
+      'INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, verified, createdAt, updatedAt) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p11) RETURNING *;',
       [
         result.title,
         cleanedSnippet || status || 'Mention',
@@ -100,6 +100,7 @@ function recordMentions(results, status) {
         status,
         result.clientId,
         publicationId,
+        null, // verified = NULL means pending until auto-verification runs
         now
       ]
     );
