@@ -67,11 +67,6 @@ COPY --from=client-builder /app/client/dist ./client/dist
 # Create data directory for SQLite database
 RUN mkdir -p /app/data
 
-# Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-RUN chown -R appuser:appuser /app
-USER appuser
-
 # Expose the port
 EXPOSE 3000
 
