@@ -623,7 +623,18 @@ function rejectPendingReview(req, res, params) {
     return sendJson(res, 400, { error: 'Invalid ID' });
   }
 
-  const mention = runQuery('SELECT * FROM mediaMentions WHERE id = @p0', [id])[0];
+  const [mention] = runQuery(
+    `SELECT
+      m.*,
+      c.name as clientName,
+      p.name as publicationName
+     FROM mediaMentions m
+     JOIN clients c ON m.clientId = c.id
+     JOIN publications p ON m.publicationId = p.id
+     WHERE m.id = @p0;`,
+    [id]
+  );
+
   if (!mention) {
     return sendJson(res, 404, { error: 'Mention not found' });
   }
@@ -631,6 +642,31 @@ function rejectPendingReview(req, res, params) {
   if (mention.verified !== null) {
     return sendJson(res, 400, { error: 'Mention is not pending review' });
   }
+
+  // Archive to deletedMentions before marking as rejected
+  runQuery(
+    `INSERT INTO deletedMentions (
+      originalMentionId, title, subjectMatter, mentionDate, reMentionDate,
+      link, source, sentiment, status, verified, clientId, clientName,
+      publicationId, publicationName
+    ) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13);`,
+    [
+      mention.id,
+      mention.title,
+      mention.subjectMatter,
+      mention.mentionDate,
+      mention.reMentionDate,
+      mention.link,
+      mention.source,
+      mention.sentiment,
+      mention.status,
+      0, // Will be marked as verified = 0 (rejected)
+      mention.clientId,
+      mention.clientName,
+      mention.publicationId,
+      mention.publicationName
+    ]
+  );
 
   runQuery('UPDATE mediaMentions SET verified = 0 WHERE id = @p0', [id]);
   sendJson(res, 200, { success: true, id, verified: 0 });
