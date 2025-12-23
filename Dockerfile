@@ -1,6 +1,10 @@
 # Build stage for client
 FROM node:20-slim AS client-builder
 
+# Accept API key as build argument for Vite to embed in the client
+ARG VITE_API_KEY
+ENV VITE_API_KEY=$VITE_API_KEY
+
 WORKDIR /app/client
 
 # Copy client package files
@@ -12,7 +16,7 @@ RUN npm ci
 # Copy client source
 COPY client/ ./
 
-# Build the client
+# Build the client (VITE_API_KEY will be embedded during build)
 RUN npm run build
 
 # Production stage
