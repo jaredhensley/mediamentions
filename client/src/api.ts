@@ -17,12 +17,12 @@ function getHeaders(contentType = 'application/json'): HeadersInit {
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     ...getHeaders(),
-    ...options?.headers,
+    ...options?.headers
   };
 
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
-    headers,
+    headers
   });
 
   if (!response.ok) {
@@ -35,7 +35,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 async function fetchBlob(url: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}${url}`, {
-    headers: getHeaders(''),
+    headers: getHeaders('')
   });
 
   if (!response.ok) {
@@ -63,20 +63,20 @@ export function fetchClients(): Promise<Client[]> {
 export function createClient(client: Omit<Client, 'id'>): Promise<Client> {
   return fetchJson('/clients', {
     method: 'POST',
-    body: JSON.stringify(client),
+    body: JSON.stringify(client)
   });
 }
 
 export function updateClient(id: number, client: Partial<Client>): Promise<Client> {
   return fetchJson(`/clients/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(client),
+    body: JSON.stringify(client)
   });
 }
 
 export function deleteClient(id: number): Promise<void> {
   return fetchJson(`/clients/${id}`, {
-    method: 'DELETE',
+    method: 'DELETE'
   });
 }
 
@@ -88,20 +88,23 @@ export function fetchPublications(): Promise<Publication[]> {
 export function createPublication(publication: Omit<Publication, 'id'>): Promise<Publication> {
   return fetchJson('/publications', {
     method: 'POST',
-    body: JSON.stringify(publication),
+    body: JSON.stringify(publication)
   });
 }
 
-export function updatePublication(id: number, publication: Partial<Publication>): Promise<Publication> {
+export function updatePublication(
+  id: number,
+  publication: Partial<Publication>
+): Promise<Publication> {
   return fetchJson(`/publications/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(publication),
+    body: JSON.stringify(publication)
   });
 }
 
 export function deletePublication(id: number): Promise<void> {
   return fetchJson(`/publications/${id}`, {
-    method: 'DELETE',
+    method: 'DELETE'
   });
 }
 
@@ -113,20 +116,20 @@ export function fetchMentions(): Promise<Mention[]> {
 export function createMention(mention: Omit<Mention, 'id'>): Promise<Mention> {
   return fetchJson('/media-mentions', {
     method: 'POST',
-    body: JSON.stringify(mention),
+    body: JSON.stringify(mention)
   });
 }
 
 export function updateMention(id: number, mention: Partial<Mention>): Promise<Mention> {
   return fetchJson(`/media-mentions/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(mention),
+    body: JSON.stringify(mention)
   });
 }
 
 export function deleteMention(id: number): Promise<void> {
   return fetchJson(`/media-mentions/${id}`, {
-    method: 'DELETE',
+    method: 'DELETE'
   });
 }
 
@@ -135,6 +138,12 @@ export async function exportFalsePositives(): Promise<void> {
   const blob = await fetchBlob('/admin/false-positives/export');
   const date = new Date().toISOString().split('T')[0];
   downloadBlob(blob, `false-positives-${date}.csv`);
+}
+
+export async function exportDeletedMentions(): Promise<void> {
+  const blob = await fetchBlob('/admin/deleted-mentions/export');
+  const date = new Date().toISOString().split('T')[0];
+  downloadBlob(blob, `deleted-mentions-${date}.csv`);
 }
 
 export async function exportClientMentions(clientId: number, clientName: string): Promise<void> {
@@ -163,11 +172,15 @@ export function fetchPendingReviewCount(): Promise<{ count: number }> {
   return fetchJson('/admin/pending-review/count');
 }
 
-export function acceptPendingReview(id: number): Promise<{ success: boolean; id: number; verified: number }> {
+export function acceptPendingReview(
+  id: number
+): Promise<{ success: boolean; id: number; verified: number }> {
   return fetchJson(`/admin/pending-review/${id}/accept`, { method: 'POST' });
 }
 
-export function rejectPendingReview(id: number): Promise<{ success: boolean; id: number; verified: number }> {
+export function rejectPendingReview(
+  id: number
+): Promise<{ success: boolean; id: number; verified: number }> {
   return fetchJson(`/admin/pending-review/${id}/reject`, { method: 'POST' });
 }
 

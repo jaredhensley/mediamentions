@@ -1,7 +1,15 @@
-import { Button, Divider, FormControlLabel, Stack, Switch, Typography, useTheme } from '@mui/material';
+import {
+  Button,
+  Divider,
+  FormControlLabel,
+  Stack,
+  Switch,
+  Typography,
+  useTheme
+} from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { useColorMode } from '../theme';
-import { exportFalsePositives } from '../api';
+import { exportFalsePositives, exportDeletedMentions } from '../api';
 import { useToast } from '../hooks/useToast';
 import PendingReviewList from '../components/PendingReviewList';
 
@@ -18,6 +26,14 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDownloadDeletedMentions = async () => {
+    try {
+      await exportDeletedMentions();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to download deleted mentions');
+    }
+  };
+
   return (
     <Stack spacing={4}>
       <Stack spacing={2}>
@@ -26,7 +42,9 @@ export default function SettingsPage() {
           control={<Switch checked={theme.palette.mode === 'dark'} onChange={toggle} />}
           label="Enable dark mode"
         />
-        <Typography color="text.secondary">Theme preference is saved locally in your browser.</Typography>
+        <Typography color="text.secondary">
+          Theme preference is saved locally in your browser.
+        </Typography>
       </Stack>
 
       <Divider />
@@ -39,7 +57,8 @@ export default function SettingsPage() {
         <Stack spacing={1}>
           <Typography variant="h6">False Positives Export</Typography>
           <Typography color="text.secondary">
-            Download a CSV file of all rejected mentions (verified = 0). These are mentions that failed verification.
+            Download a CSV file of all rejected mentions (verified = 0). These are mentions that
+            failed verification.
           </Typography>
           <Button
             variant="outlined"
@@ -48,6 +67,22 @@ export default function SettingsPage() {
             sx={{ alignSelf: 'flex-start' }}
           >
             Download False Positives CSV
+          </Button>
+        </Stack>
+
+        <Stack spacing={1}>
+          <Typography variant="h6">Deleted Mentions Export</Typography>
+          <Typography color="text.secondary">
+            Download a CSV file of all mentions that have been deleted. Use this to analyze patterns
+            and improve filtering logic.
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadDeletedMentions}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Download Deleted Mentions CSV
           </Button>
         </Stack>
       </Stack>
