@@ -99,18 +99,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Apply authentication middleware
-  // Uses callback pattern since requireApiKey expects (req, res, next)
-  const authPassed = await new Promise((resolve) => {
-    requireApiKey(req, res, () => resolve(true));
-    // If auth fails, requireApiKey sends 401 response and doesn't call next
-    // Give it a moment to check - if response was sent, resolve false
-    setImmediate(() => {
-      if (res.writableEnded) resolve(false);
-    });
-  });
+  // Skip authentication for health check endpoint (needed for Railway/Docker health checks)
+  const isHealthCheck = urlPath === '/api/health';
 
-  if (!authPassed) return;
+  if (!isHealthCheck) {
+    // Apply authentication middleware
+    // Uses callback pattern since requireApiKey expects (req, res, next)
+    const authPassed = await new Promise((resolve) => {
+      requireApiKey(req, res, () => resolve(true));
+      // If auth fails, requireApiKey sends 401 response and doesn't call next
+      // Give it a moment to check - if response was sent, resolve false
+      setImmediate(() => {
+        if (res.writableEnded) resolve(false);
+      });
+    });
+
+    if (!authPassed) return;
+  }
 
   const params = matchRoute(matchedRoute.pattern, req.url.split('?')[0]);
   try {
