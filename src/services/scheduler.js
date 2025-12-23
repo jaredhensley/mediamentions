@@ -84,9 +84,13 @@ async function scheduleDailySearch({ runImmediately = false } = {}) {
   logNextRun(task);
 
   if (runImmediately) {
-    console.log('[scheduler] running immediate tracking job');
-    await runSearchJob();
-    logNextRun(task);
+    // Delay immediate run to allow health checks to pass first
+    console.log('[scheduler] scheduling immediate tracking job (60s delay for health check)');
+    setTimeout(async () => {
+      console.log('[scheduler] running immediate tracking job');
+      await runSearchJob();
+      logNextRun(task);
+    }, 60000);
   }
 
   return task;
