@@ -122,7 +122,61 @@ const updateMediaMention = createUpdateHandler(
     'verified'
   ]
 );
-const deleteMediaMention = createDeleteHandler('mediaMentions', 'Media mention');
+async function deleteMediaMention(_req, res, params) {
+  const validation = validate(idParamSchema, params);
+  if (!validation.success) {
+    sendJson(res, 400, { error: validation.error });
+    return;
+  }
+
+  // Fetch mention with client and publication names before deleting
+  const [mention] = runQuery(
+    `SELECT
+      m.*,
+      c.name as clientName,
+      p.name as publicationName
+     FROM mediaMentions m
+     JOIN clients c ON m.clientId = c.id
+     JOIN publications p ON m.publicationId = p.id
+     WHERE m.id = @p0;`,
+    [validation.data.id]
+  );
+
+  if (!mention) {
+    sendJson(res, 404, { error: 'Media mention not found' });
+    return;
+  }
+
+  // Archive to deletedMentions table
+  runQuery(
+    `INSERT INTO deletedMentions (
+      originalMentionId, title, subjectMatter, mentionDate, reMentionDate,
+      link, source, sentiment, status, verified, clientId, clientName,
+      publicationId, publicationName
+    ) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13);`,
+    [
+      mention.id,
+      mention.title,
+      mention.subjectMatter,
+      mention.mentionDate,
+      mention.reMentionDate,
+      mention.link,
+      mention.source,
+      mention.sentiment,
+      mention.status,
+      mention.verified,
+      mention.clientId,
+      mention.clientName,
+      mention.publicationId,
+      mention.publicationName
+    ]
+  );
+
+  // Delete from mediaMentions
+  runQuery('DELETE FROM mediaMentions WHERE id = @p0;', [validation.data.id]);
+
+  sendJson(res, 200, mention);
+}
 
 async function listMediaMentions(req, res) {
   const url = new URL(req.url, 'http://localhost');
@@ -451,6 +505,74 @@ function exportFalsePositives(req, res) {
   res.end(csv);
 }
 
+function exportDeletedMentions(req, res) {
+  const mentions = runQuery(`
+    SELECT
+      id,
+      originalMentionId,
+      clientName,
+      title,
+      link,
+      source,
+      mentionDate,
+      status,
+      verified,
+      deletedAt
+    FROM deletedMentions
+    ORDER BY deletedAt DESC
+  `);
+
+  const headers = [
+    'Client',
+    'Title',
+    'URL',
+    'Source',
+    'Mention Date',
+    'Status',
+    'Verified',
+    'Deleted At',
+    'Original ID',
+    'Deleted ID'
+  ];
+  const escapeCSV = (value) => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = [headers.join(',')];
+  mentions.forEach((m) => {
+    rows.push(
+      [
+        m.clientName,
+        m.title,
+        m.link,
+        m.source,
+        m.mentionDate,
+        m.status,
+        m.verified,
+        m.deletedAt,
+        m.originalMentionId,
+        m.id
+      ]
+        .map(escapeCSV)
+        .join(',')
+    );
+  });
+
+  const csv = rows.join('\n');
+
+  res.writeHead(200, {
+    'Content-Type': 'text/csv',
+    'Content-Disposition': `attachment; filename="deleted-mentions-${new Date().toISOString().split('T')[0]}.csv"`,
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.end(csv);
+}
+
 // ============================================================================
 // PENDING REVIEW HANDLERS
 // ============================================================================
@@ -592,6 +714,7 @@ const routes = [
   { method: 'GET', pattern: '/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/api/clients/:id/mentions/export', handler: exportMentions },
   { method: 'GET', pattern: '/admin/false-positives/export', handler: exportFalsePositives },
+  { method: 'GET', pattern: '/admin/deleted-mentions/export', handler: exportDeletedMentions },
   { method: 'GET', pattern: '/api/verification-status', handler: verificationStatus },
 
   { method: 'GET', pattern: '/admin/pending-review', handler: listPendingReview },

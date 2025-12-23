@@ -149,6 +149,25 @@ function initializeDatabase() {
     updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS deletedMentions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    originalMentionId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    subjectMatter TEXT,
+    mentionDate TEXT NOT NULL,
+    reMentionDate TEXT,
+    link TEXT,
+    source TEXT,
+    sentiment TEXT,
+    status TEXT,
+    verified INTEGER,
+    clientId INTEGER NOT NULL,
+    clientName TEXT NOT NULL,
+    publicationId INTEGER NOT NULL,
+    publicationName TEXT NOT NULL,
+    deletedAt TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `;
 
   execFileSync('sqlite3', [databasePath, schema], { encoding: 'utf8' });
