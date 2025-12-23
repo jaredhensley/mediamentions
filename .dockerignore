@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (will be installed fresh)
+node_modules
+client/node_modules
+
+# Build artifacts (client will be rebuilt)
+client/dist
+
+# Development files
+.env
+.env.*
+!.env.example
+.claude
+
+# Editor/IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+logs
+temp
+tmp
+
+# Test files
+coverage
+*.test.js
+__tests__
+
+# Documentation
+README.md
+*.md
+
+# Data (database will be on persistent disk)
+data/*.db
+*.sqlite
+
+# Husky (not needed in production)
+.husky

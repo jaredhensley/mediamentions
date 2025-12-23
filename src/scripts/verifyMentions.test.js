@@ -1,4 +1,18 @@
-const { checkClientNameInContent, isValidUrl, truncateTitle } = require('./verifyMentions');
+const {
+  checkClientNameInContent,
+  isValidUrl,
+  truncateTitle,
+  getCardItemSiteConfig,
+  mentionExistsForUrl
+} = require('./verifyMentions');
+
+// Mock the database for mentionExistsForUrl tests
+jest.mock('../db', () => ({
+  runQuery: jest.fn(),
+  runExecute: jest.fn()
+}));
+
+const { runQuery } = require('../db');
 
 describe('verifyMentions module', () => {
   describe('isValidUrl', () => {
@@ -191,5 +205,86 @@ describe('verifyMentions config integration', () => {
       expect(typeof v.from).toBe('string');
       expect(typeof v.to).toBe('string');
     });
+  });
+
+  test('config has cardItemSites configuration', () => {
+    const { config } = require('../config');
+
+    expect(config.cardItemSites).toBeDefined();
+    expect(Array.isArray(config.cardItemSites)).toBe(true);
+  });
+
+  test('cardItemSites has Produce News configured', () => {
+    const { config } = require('../config');
+    const produceNews = config.cardItemSites.find((s) => s.domain === 'producenews.com');
+
+    expect(produceNews).toBeDefined();
+    expect(produceNews.cardSelector).toBe('.card-item');
+    expect(produceNews.linkSelector).toBe('a[href]');
+    expect(produceNews.listingPagePatterns).toContain('/tag/');
+  });
+});
+
+describe('getCardItemSiteConfig', () => {
+  test('returns config for Produce News URLs', () => {
+    const config = getCardItemSiteConfig('https://www.producenews.com/tag/grapes');
+    expect(config).not.toBeNull();
+    expect(config.domain).toBe('producenews.com');
+    expect(config.cardSelector).toBe('.card-item');
+  });
+
+  test('returns config for Produce News article URLs', () => {
+    const config = getCardItemSiteConfig('https://producenews.com/the-news/articles/some-article');
+    expect(config).not.toBeNull();
+    expect(config.domain).toBe('producenews.com');
+  });
+
+  test('returns null for non-card-item sites', () => {
+    expect(getCardItemSiteConfig('https://www.example.com/article')).toBeNull();
+    expect(getCardItemSiteConfig('https://www.thepacker.com/news/article')).toBeNull();
+  });
+
+  test('returns null for invalid URLs', () => {
+    expect(getCardItemSiteConfig(null)).toBeNull();
+    expect(getCardItemSiteConfig(undefined)).toBeNull();
+    expect(getCardItemSiteConfig('')).toBeNull();
+    expect(getCardItemSiteConfig('not-a-url')).toBeNull();
+  });
+});
+
+describe('mentionExistsForUrl', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('returns true when mention exists for URL and client', () => {
+    runQuery.mockReturnValue([{ id: 1 }]);
+
+    const result = mentionExistsForUrl('https://example.com/article', 5);
+
+    expect(result).toBe(true);
+    expect(runQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT id FROM mediaMentions'),
+      expect.arrayContaining([5])
+    );
+  });
+
+  test('returns false when no mention exists', () => {
+    runQuery.mockReturnValue([]);
+
+    const result = mentionExistsForUrl('https://example.com/new-article', 5);
+
+    expect(result).toBe(false);
+  });
+
+  test('returns false for null/undefined inputs', () => {
+    expect(mentionExistsForUrl(null, 5)).toBe(false);
+    expect(mentionExistsForUrl('https://example.com', null)).toBe(false);
+    expect(mentionExistsForUrl(undefined, undefined)).toBe(false);
+  });
+
+  test('returns false for invalid URL', () => {
+    expect(mentionExistsForUrl('not-a-valid-url', 5)).toBe(false);
+    expect(runQuery).not.toHaveBeenCalled();
   });
 });

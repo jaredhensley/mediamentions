@@ -546,10 +546,19 @@ function getRssFeedStatus(req, res) {
 }
 
 // ============================================================================
+// HEALTH CHECK
+// ============================================================================
+
+function healthCheck(_req, res) {
+  sendJson(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
+}
+
+// ============================================================================
 // ROUTE TABLE
 // ============================================================================
 
 const routes = [
+  { method: 'GET', pattern: '/api/health', handler: healthCheck },
   { method: 'GET', pattern: '/clients', handler: listClients },
   { method: 'POST', pattern: '/clients', handler: createClient },
   { method: 'GET', pattern: '/clients/:id', handler: getClient },

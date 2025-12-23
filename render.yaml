@@ -1,0 +1,59 @@
+# Render Blueprint - Infrastructure as Code
+# https://docs.render.com/infrastructure-as-code
+
+services:
+  - type: web
+    name: mediamentions
+    runtime: docker
+    plan: starter  # $7/month - can upgrade later if needed
+    region: oregon  # or your preferred region
+
+    # Health check
+    healthCheckPath: /api/health
+
+    # Persistent disk for SQLite database
+    disk:
+      name: mediamentions-data
+      mountPath: /app/data
+      sizeGB: 1  # 1GB should be plenty for SQLite
+
+    # Environment variables
+    envVars:
+      # Required
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+      # Database path (on persistent disk)
+      - key: DATABASE_URL
+        value: /app/data/mediamentions.db
+
+      # CORS - set to your Render URL after first deploy
+      - key: CORS_ORIGIN
+        sync: false  # Set manually after deploy
+
+      # Google Search API (required) - set in Render dashboard
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: GOOGLE_REFERER
+        sync: false
+
+      # API Key for authentication (required in production)
+      # Generate with: node -e "console.log('mm_' + require('crypto').randomBytes(32).toString('hex'))"
+      - key: API_KEY
+        sync: false
+
+      # Scheduler settings
+      - key: SCHEDULE_TIME
+        value: "03:00"
+      - key: TZ
+        value: America/New_York
+
+      # Puppeteer settings for Docker
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "true"
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium

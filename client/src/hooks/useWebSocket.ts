@@ -15,7 +15,25 @@ export interface WebSocketMessage {
 
 type MessageHandler = (message: WebSocketMessage) => void;
 
-const WS_URL = 'ws://localhost:3000';
+// Build WebSocket URL from current location or environment
+function getWebSocketUrl(): string {
+  // Use environment variable if set (for development)
+  const envUrl = import.meta.env.VITE_WS_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // In production, derive from current location
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+
+  // Fallback for development
+  return 'ws://localhost:3000';
+}
+
+const WS_URL = getWebSocketUrl();
 
 export function useWebSocket(onMessage?: MessageHandler): void {
   const wsRef = useRef<WebSocket | null>(null);

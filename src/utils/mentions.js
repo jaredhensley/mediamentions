@@ -24,6 +24,58 @@ function extractDomain(url) {
   }
 }
 
+/**
+ * Normalize URL for comparison purposes
+ * Removes trailing slashes, lowercases, strips tracking params, normalizes protocol
+ * @param {string} url - URL to normalize
+ * @returns {string|null} - Normalized URL or null if invalid
+ */
+function normalizeUrlForComparison(url) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+
+    // Normalize to https
+    parsed.protocol = 'https:';
+
+    // Remove common tracking params
+    const trackingParams = [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_content',
+      'utm_term',
+      'fbclid',
+      'gclid',
+      'ref',
+      'source'
+    ];
+    trackingParams.forEach((param) => parsed.searchParams.delete(param));
+
+    // Build normalized URL
+    let normalized = `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.pathname}`;
+
+    // Remove trailing slash (but keep root slash)
+    if (
+      normalized.endsWith('/') &&
+      normalized.length > parsed.protocol.length + 2 + parsed.hostname.length + 1
+    ) {
+      normalized = normalized.slice(0, -1);
+    }
+
+    // Add remaining search params if any
+    const remainingParams = parsed.searchParams.toString();
+    if (remainingParams) {
+      normalized += `?${remainingParams}`;
+    }
+
+    return normalized.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 function dedupeMentions(results) {
   const seen = new Set();
   return results.filter((result) => {
@@ -352,5 +404,6 @@ module.exports = {
   dedupeMentions,
   recordMentions,
   extractDomain,
+  normalizeUrlForComparison,
   cleanSnippet // Exported for testing
 };

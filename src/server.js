@@ -4,6 +4,8 @@
  */
 
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { initializeDatabase } = require('./db');
 const { seedDefaultClients } = require('./utils/seedDefaultClients');
 const { seedDefaultPublications } = require('./utils/seedDefaultPublications');
@@ -13,6 +15,35 @@ const { validateConfig, config } = require('./config');
 const { requireApiKey } = require('./middleware/auth');
 const { matchRoute, sendJson } = require('./utils/http');
 const { routes } = require('./routes');
+
+// Static file serving for production (client build)
+const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
+};
+
+function serveStaticFile(res, filePath) {
+  const ext = path.extname(filePath);
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+  try {
+    const content = fs.readFileSync(filePath);
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(content);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Validate configuration before starting
 validateConfig();
@@ -40,10 +71,30 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
 
+  const urlPath = req.url.split('?')[0];
   const matchedRoute = routes.find(
-    (route) => route.method === req.method && matchRoute(route.pattern, req.url.split('?')[0])
+    (route) => route.method === req.method && matchRoute(route.pattern, urlPath)
   );
+
+  // If no API route matches, try to serve static files (for SPA)
   if (!matchedRoute) {
+    // Check if client/dist exists (production build)
+    if (fs.existsSync(CLIENT_DIST)) {
+      // Try to serve the exact file
+      const requestedFile = path.join(CLIENT_DIST, urlPath);
+      if (fs.existsSync(requestedFile) && fs.statSync(requestedFile).isFile()) {
+        serveStaticFile(res, requestedFile);
+        return;
+      }
+
+      // For SPA: serve index.html for all non-file requests
+      const indexPath = path.join(CLIENT_DIST, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        serveStaticFile(res, indexPath);
+        return;
+      }
+    }
+
     sendJson(res, 404, { error: 'Route not found' });
     return;
   }

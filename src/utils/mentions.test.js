@@ -1,4 +1,10 @@
-const { extractDomain, dedupeMentions, cleanSnippet, recordMentions } = require('./mentions');
+const {
+  extractDomain,
+  dedupeMentions,
+  cleanSnippet,
+  recordMentions,
+  normalizeUrlForComparison
+} = require('./mentions');
 
 // Mock the database and websocket modules
 jest.mock('../db', () => ({
@@ -192,5 +198,57 @@ describe('dedupeMentions', () => {
 
   test('handles empty array', () => {
     expect(dedupeMentions([])).toEqual([]);
+  });
+});
+
+describe('normalizeUrlForComparison', () => {
+  test('normalizes protocol to https', () => {
+    expect(normalizeUrlForComparison('http://example.com/article')).toBe(
+      'https://example.com/article'
+    );
+    expect(normalizeUrlForComparison('https://example.com/article')).toBe(
+      'https://example.com/article'
+    );
+  });
+
+  test('removes trailing slashes', () => {
+    expect(normalizeUrlForComparison('https://example.com/article/')).toBe(
+      'https://example.com/article'
+    );
+    expect(normalizeUrlForComparison('https://example.com/')).toBe('https://example.com/');
+  });
+
+  test('lowercases URL', () => {
+    expect(normalizeUrlForComparison('https://EXAMPLE.COM/Article')).toBe(
+      'https://example.com/article'
+    );
+  });
+
+  test('removes common tracking parameters', () => {
+    expect(
+      normalizeUrlForComparison('https://example.com/article?utm_source=google&utm_medium=cpc')
+    ).toBe('https://example.com/article');
+    expect(normalizeUrlForComparison('https://example.com/article?fbclid=abc123&id=456')).toBe(
+      'https://example.com/article?id=456'
+    );
+  });
+
+  test('preserves non-tracking query parameters', () => {
+    expect(normalizeUrlForComparison('https://example.com/article?page=2&id=123')).toBe(
+      'https://example.com/article?page=2&id=123'
+    );
+  });
+
+  test('returns null for invalid URLs', () => {
+    expect(normalizeUrlForComparison(null)).toBeNull();
+    expect(normalizeUrlForComparison(undefined)).toBeNull();
+    expect(normalizeUrlForComparison('')).toBeNull();
+    expect(normalizeUrlForComparison('not-a-url')).toBeNull();
+  });
+
+  test('handles URLs with complex paths', () => {
+    expect(
+      normalizeUrlForComparison('https://producenews.com/the-news/articles/some-article-slug')
+    ).toBe('https://producenews.com/the-news/articles/some-article-slug');
   });
 });

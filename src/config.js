@@ -106,7 +106,22 @@ const config = {
     fetchTimeoutMs: Number(process.env.RSS_FETCH_TIMEOUT_MS) || 30000,
     // Whether to run verification automatically after RSS polling
     autoVerify: process.env.RSS_AUTO_VERIFY !== 'false'
-  }
+  },
+  // Site-specific handling for listing/index pages with card items
+  // These sites have listing pages where client names appear in article cards
+  // that link to actual articles. We need to extract the real article URLs.
+  cardItemSites: [
+    {
+      // Produce News uses card-item class for article previews on listing pages
+      domain: 'producenews.com',
+      // CSS selector for card container elements
+      cardSelector: '.card-item',
+      // How to extract the article URL from the card (relative to card element)
+      linkSelector: 'a[href]',
+      // Patterns in URL that indicate a listing/index page (not an article)
+      listingPagePatterns: ['/tag/', '/category/', '/author/', '/page/', '/search/']
+    }
+  ]
 };
 
 // Legacy exports for backward compatibility
