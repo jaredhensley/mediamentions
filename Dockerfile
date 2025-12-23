@@ -55,8 +55,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install production dependencies only (--ignore-scripts skips husky prepare)
+RUN npm ci --only=production --ignore-scripts
 
 # Copy server source code
 COPY src/ ./src/
