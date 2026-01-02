@@ -778,31 +778,67 @@ function cleanupDuplicates(_req, res) {
       result.errors.push(`Failed to drop index: ${err.message}`);
     }
 
-    // Step 2: Find and delete semantic duplicates (same normalized URL + clientId)
-    // Group all mentions by normalized URL + clientId in memory
-    const allMentions = runQuery('SELECT id, link, clientId FROM mediaMentions ORDER BY id ASC');
-    const groups = new Map();
+    // Step 2: Find and delete semantic duplicates (same normalized URL OR title + clientId)
+    // Group all mentions by normalized URL + clientId and title + clientId in memory
+    const allMentions = runQuery(
+      'SELECT id, link, title, clientId FROM mediaMentions ORDER BY id ASC'
+    );
+    const urlGroups = new Map();
+    const titleGroups = new Map();
 
+    // Group by URL
     for (const mention of allMentions) {
       const normalized = normalizeUrlForComparison(mention.link) || mention.link;
-      const key = `${normalized}-${mention.clientId}`;
+      const key = `url:${normalized}-${mention.clientId}`;
 
-      if (!groups.has(key)) {
-        groups.set(key, []);
+      if (!urlGroups.has(key)) {
+        urlGroups.set(key, []);
       }
-      groups.get(key).push({ id: mention.id, link: mention.link, normalized });
+      urlGroups.get(key).push(mention.id);
     }
 
-    // Delete duplicates - keep first (oldest) in each group
-    for (const [_key, mentions] of groups) {
-      if (mentions.length > 1) {
+    // Group by title
+    for (const mention of allMentions) {
+      const normalizedTitle = (mention.title || '').toLowerCase().trim();
+      if (!normalizedTitle) continue; // Skip empty titles
+
+      const key = `title:${normalizedTitle}-${mention.clientId}`;
+
+      if (!titleGroups.has(key)) {
+        titleGroups.set(key, []);
+      }
+      titleGroups.get(key).push(mention.id);
+    }
+
+    // Collect all IDs to delete (but keep track to avoid double-deletion)
+    const idsToDelete = new Set();
+
+    // Delete URL duplicates - keep first (oldest) in each group
+    for (const [_key, ids] of urlGroups) {
+      if (ids.length > 1) {
         result.duplicatesFound++;
         // Delete all except the first one
-        for (let i = 1; i < mentions.length; i++) {
-          runExecute('DELETE FROM mediaMentions WHERE id = @p0', [mentions[i].id]);
-          result.duplicatesDeleted++;
+        for (let i = 1; i < ids.length; i++) {
+          idsToDelete.add(ids[i]);
         }
       }
+    }
+
+    // Delete title duplicates - keep first (oldest) in each group
+    for (const [_key, ids] of titleGroups) {
+      if (ids.length > 1) {
+        result.duplicatesFound++;
+        // Delete all except the first one
+        for (let i = 1; i < ids.length; i++) {
+          idsToDelete.add(ids[i]);
+        }
+      }
+    }
+
+    // Perform the actual deletions
+    for (const id of idsToDelete) {
+      runExecute('DELETE FROM mediaMentions WHERE id = @p0', [id]);
+      result.duplicatesDeleted++;
     }
 
     // Step 3: Normalize all remaining URLs

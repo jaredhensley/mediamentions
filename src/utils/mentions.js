@@ -94,44 +94,58 @@ function recordMentions(results, status) {
   const created = [];
   const publicationCache = new Map();
 
-  // Batch duplicate check: collect all URL+clientId pairs and check in one query
+  // Batch duplicate check: collect all URL+clientId and title+clientId pairs and check in one query
   // This fixes N+1 query pattern (was running 1 query per result)
   const existingSet = new Set();
 
-  // Build a set of existing link+clientId combinations
+  // Build a set of existing link+clientId and title+clientId combinations
   // Group by clientId for efficient querying
   const clientGroups = new Map();
   for (const result of results) {
     if (!clientGroups.has(result.clientId)) {
-      clientGroups.set(result.clientId, []);
+      clientGroups.set(result.clientId, { urls: [], titles: [] });
     }
     const normalizedUrl = normalizeUrlForComparison(result.url) || result.url;
-    clientGroups.get(result.clientId).push(normalizedUrl);
+    const normalizedTitle = (result.title || '').toLowerCase().trim();
+    clientGroups.get(result.clientId).urls.push(normalizedUrl);
+    clientGroups.get(result.clientId).titles.push(normalizedTitle);
   }
 
   // Query existing mentions for each client (reduces N queries to M queries where M = unique clients)
-  for (const [clientId, urls] of clientGroups) {
-    // Use IN clause for batch lookup
-    const placeholders = urls.map((_, i) => `@p${i}`).join(', ');
+  for (const [clientId, { urls, titles }] of clientGroups) {
+    // Use IN clause for batch lookup - check both URL and title
+    const urlPlaceholders = urls.map((_, i) => `@p${i}`).join(', ');
+    const titlePlaceholders = titles.map((_, i) => `@p${urls.length + i}`).join(', ');
     const existing = runQuery(
-      `SELECT link FROM mediaMentions WHERE clientId = @p${urls.length} AND link IN (${placeholders})`,
-      [...urls, clientId]
+      `SELECT link, LOWER(TRIM(title)) as normalizedTitle FROM mediaMentions
+       WHERE clientId = @p${urls.length + titles.length}
+       AND (link IN (${urlPlaceholders}) OR LOWER(TRIM(title)) IN (${titlePlaceholders}))`,
+      [...urls, ...titles, clientId]
     );
     for (const row of existing) {
-      existingSet.add(`${row.link}-${clientId}`);
+      // Add both URL and title-based keys to catch duplicates by either
+      existingSet.add(`url:${row.link}-${clientId}`);
+      existingSet.add(`title:${row.normalizedTitle}-${clientId}`);
     }
   }
 
   // Now process results, skipping duplicates
   for (const result of results) {
-    // Normalize the URL before checking for duplicates and storing
+    // Normalize the URL and title before checking for duplicates and storing
     const normalizedUrl = normalizeUrlForComparison(result.url) || result.url;
+    const normalizedTitle = (result.title || '').toLowerCase().trim();
 
-    const key = `${normalizedUrl}-${result.clientId}`;
-    if (existingSet.has(key)) {
-      // Already stored for this client; skip creating a duplicate entry.
+    const urlKey = `url:${normalizedUrl}-${result.clientId}`;
+    const titleKey = `title:${normalizedTitle}-${result.clientId}`;
+
+    if (existingSet.has(urlKey) || existingSet.has(titleKey)) {
+      // Already stored for this client (by URL or title); skip creating a duplicate entry.
       continue;
     }
+
+    // Add to existingSet so we don't create duplicates within this batch
+    existingSet.add(urlKey);
+    existingSet.add(titleKey);
 
     const publicationId = ensurePublication(result.source, publicationCache);
     if (!publicationId) {
