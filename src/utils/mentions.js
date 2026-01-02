@@ -77,6 +77,51 @@ function normalizeUrlForComparison(url) {
 }
 
 /**
+ * URL patterns that indicate listing/search/archive pages (not actual articles)
+ */
+const BLOCKED_URL_PATTERNS = [
+  /\/search(\?|$)/i, // Search pages
+  /\/category\//i, // Category archives
+  /[?&]page=/i, // Paginated listing pages
+  /[?&]cat=/i // Category filter params
+];
+
+/**
+ * Domains that are aggregators/directories, not news sources
+ */
+const BLOCKED_DOMAINS = ['10times.com', 'researchgate.net'];
+
+/**
+ * Check if a URL should be blocked based on patterns and domains
+ * These are typically listing pages, search results, or aggregator sites
+ * @param {string} url - URL to check
+ * @param {string} [source] - Source domain (optional, for domain check)
+ * @returns {boolean} - True if URL should be blocked
+ */
+function isBlockedUrl(url, source) {
+  if (!url) return false;
+
+  // Check URL patterns
+  for (const pattern of BLOCKED_URL_PATTERNS) {
+    if (pattern.test(url)) {
+      return true;
+    }
+  }
+
+  // Check blocked domains
+  const urlLower = url.toLowerCase();
+  const sourceLower = (source || '').toLowerCase();
+
+  for (const domain of BLOCKED_DOMAINS) {
+    if (urlLower.includes(domain) || sourceLower.includes(domain)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Deduplicate mentions within a batch by URL or title
  * Keeps the first occurrence when duplicates are found
  * @param {Array} results - Array of normalized mention results
@@ -156,6 +201,11 @@ function recordMentions(results, status) {
 
     if (existingSet.has(urlKey) || existingSet.has(titleKey)) {
       // Already stored for this client (by URL or title); skip creating a duplicate entry.
+      continue;
+    }
+
+    // Skip blocked URLs (search pages, category archives, aggregator sites)
+    if (isBlockedUrl(result.url, result.source)) {
       continue;
     }
 
@@ -439,5 +489,6 @@ module.exports = {
   recordMentions,
   extractDomain,
   normalizeUrlForComparison,
-  cleanSnippet // Exported for testing
+  cleanSnippet,
+  isBlockedUrl
 };

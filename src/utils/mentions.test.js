@@ -3,7 +3,8 @@ const {
   dedupeMentions,
   cleanSnippet,
   recordMentions,
-  normalizeUrlForComparison
+  normalizeUrlForComparison,
+  isBlockedUrl
 } = require('./mentions');
 
 // Mock the database and websocket modules
@@ -357,5 +358,49 @@ describe('normalizeUrlForComparison', () => {
     expect(
       normalizeUrlForComparison('https://producenews.com/the-news/articles/some-article-slug')
     ).toBe('https://producenews.com/the-news/articles/some-article-slug');
+  });
+});
+
+describe('isBlockedUrl', () => {
+  test('blocks search pages', () => {
+    expect(isBlockedUrl('https://example.com/search')).toBe(true);
+    expect(isBlockedUrl('https://example.com/search?q=test')).toBe(true);
+    expect(isBlockedUrl('https://theproducenews.com/search?page=683')).toBe(true);
+  });
+
+  test('blocks category pages', () => {
+    expect(isBlockedUrl('https://perishablenews.com/category/produce/')).toBe(true);
+    expect(isBlockedUrl('https://example.com/category/news/article')).toBe(true);
+  });
+
+  test('blocks paginated listing pages', () => {
+    expect(isBlockedUrl('https://example.com/articles?page=1')).toBe(true);
+    expect(isBlockedUrl('https://example.com/news?page=25&sort=date')).toBe(true);
+  });
+
+  test('blocks category filter params', () => {
+    expect(isBlockedUrl('https://producemarketguide.com/news?cat=Sweet%2BPotatoes')).toBe(true);
+  });
+
+  test('blocks aggregator domains', () => {
+    expect(isBlockedUrl('https://10times.com/sanantonio-us/conferences')).toBe(true);
+    expect(isBlockedUrl('https://www.researchgate.net/publication/12345')).toBe(true);
+  });
+
+  test('blocks by source domain', () => {
+    expect(isBlockedUrl('https://example.com/article', '10times.com')).toBe(true);
+    expect(isBlockedUrl('https://example.com/article', 'researchgate.net')).toBe(true);
+  });
+
+  test('allows legitimate article URLs', () => {
+    expect(isBlockedUrl('https://theproducenews.com/headlines/produce-industry-news')).toBe(false);
+    expect(isBlockedUrl('https://freshfruitportal.com/news/2025/12/23/article-title')).toBe(false);
+    expect(isBlockedUrl('https://example.com/articles/great-news-story')).toBe(false);
+  });
+
+  test('returns false for null/empty URLs', () => {
+    expect(isBlockedUrl(null)).toBe(false);
+    expect(isBlockedUrl('')).toBe(false);
+    expect(isBlockedUrl(undefined)).toBe(false);
   });
 });
