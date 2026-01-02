@@ -765,45 +765,53 @@ function cleanupDuplicates(_req, res) {
     duplicatesDeleted: 0,
     urlsNormalized: 0,
     indexCreated: false,
+    indexDropped: false,
     errors: []
   };
 
   try {
-    // Step 1: Normalize all URLs in the database (convert http to https, etc.)
-    const allMentions = runQuery('SELECT id, link FROM mediaMentions');
+    // Step 1: Drop the unique index temporarily so we can normalize URLs
+    try {
+      runExecute('DROP INDEX IF EXISTS idx_mentions_url_client_unique');
+      result.indexDropped = true;
+    } catch (err) {
+      result.errors.push(`Failed to drop index: ${err.message}`);
+    }
+
+    // Step 2: Find and delete semantic duplicates (same normalized URL + clientId)
+    // Group all mentions by normalized URL + clientId in memory
+    const allMentions = runQuery('SELECT id, link, clientId FROM mediaMentions ORDER BY id ASC');
+    const groups = new Map();
+
     for (const mention of allMentions) {
+      const normalized = normalizeUrlForComparison(mention.link) || mention.link;
+      const key = `${normalized}-${mention.clientId}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key).push({ id: mention.id, link: mention.link, normalized });
+    }
+
+    // Delete duplicates - keep first (oldest) in each group
+    for (const [_key, mentions] of groups) {
+      if (mentions.length > 1) {
+        result.duplicatesFound++;
+        // Delete all except the first one
+        for (let i = 1; i < mentions.length; i++) {
+          runExecute('DELETE FROM mediaMentions WHERE id = @p0', [mentions[i].id]);
+          result.duplicatesDeleted++;
+        }
+      }
+    }
+
+    // Step 3: Normalize all remaining URLs
+    const remainingMentions = runQuery('SELECT id, link FROM mediaMentions');
+    for (const mention of remainingMentions) {
       const normalized = normalizeUrlForComparison(mention.link);
       if (normalized && normalized !== mention.link) {
         runExecute('UPDATE mediaMentions SET link = @p0 WHERE id = @p1', [normalized, mention.id]);
         result.urlsNormalized++;
-      }
-    }
-
-    // Step 2: Find duplicates after normalization
-    const duplicates = runQuery(`
-      SELECT link, clientId, COUNT(*) as count
-      FROM mediaMentions
-      GROUP BY link, clientId
-      HAVING COUNT(*) > 1
-      ORDER BY count DESC
-    `);
-
-    result.duplicatesFound = duplicates.length;
-
-    if (duplicates.length > 0) {
-      // For each duplicate, keep the oldest (smallest id) and delete the rest
-      for (const dup of duplicates) {
-        const mentions = runQuery(
-          'SELECT id FROM mediaMentions WHERE link = @p0 AND clientId = @p1 ORDER BY id ASC',
-          [dup.link, dup.clientId]
-        );
-
-        const deleteIds = mentions.slice(1).map((m) => m.id);
-
-        for (const id of deleteIds) {
-          runExecute('DELETE FROM mediaMentions WHERE id = @p0', [id]);
-          result.duplicatesDeleted++;
-        }
       }
     }
 
