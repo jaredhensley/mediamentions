@@ -105,7 +105,8 @@ function recordMentions(results, status) {
     if (!clientGroups.has(result.clientId)) {
       clientGroups.set(result.clientId, []);
     }
-    clientGroups.get(result.clientId).push(result.url);
+    const normalizedUrl = normalizeUrlForComparison(result.url) || result.url;
+    clientGroups.get(result.clientId).push(normalizedUrl);
   }
 
   // Query existing mentions for each client (reduces N queries to M queries where M = unique clients)
@@ -123,7 +124,10 @@ function recordMentions(results, status) {
 
   // Now process results, skipping duplicates
   for (const result of results) {
-    const key = `${result.url}-${result.clientId}`;
+    // Normalize the URL before checking for duplicates and storing
+    const normalizedUrl = normalizeUrlForComparison(result.url) || result.url;
+
+    const key = `${normalizedUrl}-${result.clientId}`;
     if (existingSet.has(key)) {
       // Already stored for this client; skip creating a duplicate entry.
       continue;
@@ -147,7 +151,7 @@ function recordMentions(results, status) {
         cleanedSnippet || status || 'Mention',
         mentionDate,
         null,
-        result.url,
+        normalizedUrl, // Store normalized URL
         result.source,
         result.sentiment || null,
         status,

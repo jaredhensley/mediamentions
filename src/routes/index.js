@@ -6,6 +6,7 @@ const { runQuery, runExecute } = require('../db');
 const { parseJsonBody, sendJson, escapeXml, formatDisplayDate } = require('../utils/http');
 const { getStatus: getVerificationStatus } = require('../services/verificationStatus');
 const { pollRssFeeds, loadClientsWithRssFeeds } = require('../services/rssService');
+const { normalizeUrlForComparison } = require('../utils/mentions');
 const {
   validate,
   createClientSchema,
@@ -220,6 +221,10 @@ async function createMediaMention(req, res) {
     }
     const d = validation.data;
     const now = new Date().toISOString();
+
+    // Normalize the URL to ensure consistency (http -> https, remove tracking params)
+    const normalizedLink = normalizeUrlForComparison(d.link) || d.link || '';
+
     const [mention] = runQuery(
       `INSERT INTO mediaMentions (title, subjectMatter, mentionDate, reMentionDate, link, source, sentiment, status, clientId, publicationId, createdAt, updatedAt)
        VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p10) RETURNING *;`,
@@ -228,7 +233,7 @@ async function createMediaMention(req, res) {
         d.subjectMatter || '',
         d.mentionDate,
         d.reMentionDate || null,
-        d.link || '',
+        normalizedLink,
         d.source || null,
         d.sentiment || null,
         d.status || 'new',
@@ -758,12 +763,23 @@ function cleanupDuplicates(_req, res) {
     startedAt: new Date().toISOString(),
     duplicatesFound: 0,
     duplicatesDeleted: 0,
+    urlsNormalized: 0,
     indexCreated: false,
     errors: []
   };
 
   try {
-    // Find duplicates
+    // Step 1: Normalize all URLs in the database (convert http to https, etc.)
+    const allMentions = runQuery('SELECT id, link FROM mediaMentions');
+    for (const mention of allMentions) {
+      const normalized = normalizeUrlForComparison(mention.link);
+      if (normalized && normalized !== mention.link) {
+        runExecute('UPDATE mediaMentions SET link = @p0 WHERE id = @p1', [normalized, mention.id]);
+        result.urlsNormalized++;
+      }
+    }
+
+    // Step 2: Find duplicates after normalization
     const duplicates = runQuery(`
       SELECT link, clientId, COUNT(*) as count
       FROM mediaMentions
