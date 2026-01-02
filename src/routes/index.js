@@ -2,7 +2,7 @@
  * @fileoverview Route handlers for all API endpoints
  */
 
-const { runQuery } = require('../db');
+const { runQuery, runExecute } = require('../db');
 const { parseJsonBody, sendJson, escapeXml, formatDisplayDate } = require('../utils/http');
 const { getStatus: getVerificationStatus } = require('../services/verificationStatus');
 const { pollRssFeeds, loadClientsWithRssFeeds } = require('../services/rssService');
@@ -712,6 +712,75 @@ function healthCheck(_req, res) {
 }
 
 // ============================================================================
+// ADMIN: CLEANUP DUPLICATES
+// ============================================================================
+
+function cleanupDuplicates(_req, res) {
+  const result = {
+    startedAt: new Date().toISOString(),
+    duplicatesFound: 0,
+    duplicatesDeleted: 0,
+    indexCreated: false,
+    errors: []
+  };
+
+  try {
+    // Find duplicates
+    const duplicates = runQuery(`
+      SELECT link, clientId, COUNT(*) as count
+      FROM mediaMentions
+      GROUP BY link, clientId
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC
+    `);
+
+    result.duplicatesFound = duplicates.length;
+
+    if (duplicates.length > 0) {
+      // For each duplicate, keep the oldest (smallest id) and delete the rest
+      for (const dup of duplicates) {
+        const mentions = runQuery(
+          'SELECT id FROM mediaMentions WHERE link = @p0 AND clientId = @p1 ORDER BY id ASC',
+          [dup.link, dup.clientId]
+        );
+
+        const deleteIds = mentions.slice(1).map((m) => m.id);
+
+        for (const id of deleteIds) {
+          runExecute('DELETE FROM mediaMentions WHERE id = @p0', [id]);
+          result.duplicatesDeleted++;
+        }
+      }
+    }
+
+    // Create the unique index
+    try {
+      runExecute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_mentions_url_client_unique ON mediaMentions(link, clientId)'
+      );
+      result.indexCreated = true;
+    } catch (err) {
+      result.errors.push(`Failed to create unique index: ${err.message}`);
+    }
+
+    // Verify the index exists
+    const indices = runQuery(
+      "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_mentions_url_client_unique'"
+    );
+    result.indexExists = indices.length > 0;
+
+    result.finishedAt = new Date().toISOString();
+    result.success = result.errors.length === 0;
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    result.errors.push(err.message);
+    result.success = false;
+    sendJson(res, 500, result);
+  }
+}
+
+// ============================================================================
 // ROUTE TABLE
 // ============================================================================
 
@@ -759,7 +828,9 @@ const routes = [
   { method: 'POST', pattern: '/admin/pending-review/:id/reject', handler: rejectPendingReview },
 
   { method: 'GET', pattern: '/admin/rss-feeds', handler: getRssFeedStatus },
-  { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll }
+  { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll },
+
+  { method: 'POST', pattern: '/admin/cleanup-duplicates', handler: cleanupDuplicates }
 ];
 
 module.exports = {
