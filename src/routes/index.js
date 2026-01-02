@@ -715,6 +715,44 @@ function healthCheck(_req, res) {
 // ADMIN: CLEANUP DUPLICATES
 // ============================================================================
 
+function inspectDuplicates(_req, res) {
+  try {
+    // Find duplicate groups
+    const duplicateGroups = runQuery(`
+      SELECT link, clientId, COUNT(*) as count
+      FROM mediaMentions
+      GROUP BY link, clientId
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC
+    `);
+
+    // Get full details for each duplicate group
+    const duplicates = [];
+    for (const group of duplicateGroups) {
+      const mentions = runQuery(
+        `SELECT id, title, mentionDate, link, clientId, verified, status, createdAt
+         FROM mediaMentions
+         WHERE link = @p0 AND clientId = @p1
+         ORDER BY id ASC`,
+        [group.link, group.clientId]
+      );
+      duplicates.push({
+        link: group.link,
+        clientId: group.clientId,
+        count: group.count,
+        mentions: mentions
+      });
+    }
+
+    sendJson(res, 200, {
+      totalDuplicateGroups: duplicateGroups.length,
+      duplicates: duplicates
+    });
+  } catch (err) {
+    sendJson(res, 500, { error: err.message });
+  }
+}
+
 function cleanupDuplicates(_req, res) {
   const result = {
     startedAt: new Date().toISOString(),
@@ -830,6 +868,7 @@ const routes = [
   { method: 'GET', pattern: '/admin/rss-feeds', handler: getRssFeedStatus },
   { method: 'POST', pattern: '/admin/rss-feeds/poll', handler: triggerRssPoll },
 
+  { method: 'GET', pattern: '/admin/duplicates/inspect', handler: inspectDuplicates },
   { method: 'POST', pattern: '/admin/cleanup-duplicates', handler: cleanupDuplicates }
 ];
 
