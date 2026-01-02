@@ -16,19 +16,32 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
-  Typography,
+  Typography
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
 import { useSearchParams } from 'react-router-dom';
-import { fetchClients, fetchMentions, fetchPublications, deleteMention, exportClientMentions, updateClient, createClient, deleteClient } from '../api';
+import {
+  fetchClients,
+  fetchMentions,
+  fetchPublications,
+  deleteMention,
+  exportClientMentions,
+  updateClient,
+  createClient,
+  deleteClient
+} from '../api';
 import { Client, Mention, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import RssFeedModal from '../components/RssFeedModal';
 import { formatDisplayDate } from '../utils/format';
 import { useToast } from '../hooks/useToast';
+
+type SortColumn = 'title' | 'source' | 'sentiment' | 'date';
+type SortDirection = 'asc' | 'desc';
 
 export default function ClientsPage() {
   const [clientList, setClientList] = useState<Client[]>([]);
@@ -36,6 +49,8 @@ export default function ClientsPage() {
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [publicationList, setPublicationList] = useState<Publication[]>([]);
   const [sentimentFilter, setSentimentFilter] = useState('all');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [mentionModalOpen, setMentionModalOpen] = useState(false);
   const [rssModalOpen, setRssModalOpen] = useState(false);
   const [rssModalClient, setRssModalClient] = useState<Client | null>(null);
@@ -77,17 +92,39 @@ export default function ClientsPage() {
 
   const selectedClient = clientList.find((c) => c.id === selectedClientId);
 
-  const clientMentions = useMemo(
-    () =>
-      mentions.filter((mention) => {
-        return (
-          mention.verified === 1 &&
-          mention.clientId === selectedClientId &&
-          (sentimentFilter === 'all' || mention.sentiment === sentimentFilter)
-        );
-      }),
-    [mentions, selectedClientId, sentimentFilter],
-  );
+  const clientMentions = useMemo(() => {
+    const filtered = mentions.filter((mention) => {
+      return (
+        mention.verified === 1 &&
+        mention.clientId === selectedClientId &&
+        (sentimentFilter === 'all' || mention.sentiment === sentimentFilter)
+      );
+    });
+
+    // Sort the filtered mentions
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      const getSource = (m: Mention) =>
+        m.source || publicationList.find((p) => p.id === m.publicationId)?.name || '';
+
+      switch (sortColumn) {
+        case 'title':
+          comparison = (a.title || '').localeCompare(b.title || '');
+          break;
+        case 'source':
+          comparison = getSource(a).localeCompare(getSource(b));
+          break;
+        case 'sentiment':
+          comparison = (a.sentiment || '').localeCompare(b.sentiment || '');
+          break;
+        case 'date':
+          comparison = new Date(a.mentionDate).getTime() - new Date(b.mentionDate).getTime();
+          break;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [mentions, selectedClientId, sentimentFilter, sortColumn, sortDirection, publicationList]);
 
   const mentionCounts = useMemo(() => {
     const counts: Record<number, number> = {};
@@ -114,7 +151,7 @@ export default function ClientsPage() {
       const newClient = await createClient({
         name: trimmedName,
         contactEmail: '',
-        notes: clientForm.notes.trim(),
+        notes: clientForm.notes.trim()
       });
       setClientList((prev) => [...prev, newClient]);
       setClientForm({ name: '', notes: '' });
@@ -128,9 +165,10 @@ export default function ClientsPage() {
     if (!selectedClientId || !selectedClient) return;
 
     const mentionCount = mentionCounts[selectedClientId] || 0;
-    const message = mentionCount > 0
-      ? `Are you sure you want to delete "${selectedClient.name}"? This will also delete ${mentionCount} mention(s).`
-      : `Are you sure you want to delete "${selectedClient.name}"?`;
+    const message =
+      mentionCount > 0
+        ? `Are you sure you want to delete "${selectedClient.name}"? This will also delete ${mentionCount} mention(s).`
+        : `Are you sure you want to delete "${selectedClient.name}"?`;
 
     if (!confirm(message)) {
       return;
@@ -186,8 +224,19 @@ export default function ClientsPage() {
 
     const updatedClient = await updateClient(rssModalClient.id, { alertsRssFeedUrl: url });
     setClientList((prev) =>
-      prev.map((c) => (c.id === rssModalClient.id ? { ...c, alertsRssFeedUrl: updatedClient.alertsRssFeedUrl } : c))
+      prev.map((c) =>
+        c.id === rssModalClient.id ? { ...c, alertsRssFeedUrl: updatedClient.alertsRssFeedUrl } : c
+      )
     );
+  };
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection(column === 'date' ? 'desc' : 'asc');
+    }
   };
 
   return (
@@ -213,7 +262,11 @@ export default function ClientsPage() {
                   onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
                   fullWidth
                 />
-                <Button variant="contained" onClick={handleClientSave} disabled={!clientForm.name.trim()}>
+                <Button
+                  variant="contained"
+                  onClick={handleClientSave}
+                  disabled={!clientForm.name.trim()}
+                >
                   Add client
                 </Button>
               </Stack>
@@ -236,20 +289,31 @@ export default function ClientsPage() {
                       }}
                     >
                       <TableCell>
-                        <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          width="100%"
+                        >
                           <Box display="flex" alignItems="center" gap={1.5}>
                             <span>{client.name}</span>
-                            <Badge badgeContent={mentionCounts[client.id] || 0} color="primary" sx={{ ml: 1 }} />
+                            <Badge
+                              badgeContent={mentionCounts[client.id] || 0}
+                              color="primary"
+                              sx={{ ml: 1 }}
+                            />
                           </Box>
-                          <Tooltip title={client.alertsRssFeedUrl ? 'RSS feed active' : 'Set up RSS feed'}>
+                          <Tooltip
+                            title={client.alertsRssFeedUrl ? 'RSS feed active' : 'Set up RSS feed'}
+                          >
                             <IconButton
                               size="small"
                               onClick={(e) => handleRssIconClick(client, e)}
                               sx={{
                                 color: client.alertsRssFeedUrl ? 'warning.main' : 'action.disabled',
                                 '&:hover': {
-                                  color: client.alertsRssFeedUrl ? 'warning.dark' : 'warning.main',
-                                },
+                                  color: client.alertsRssFeedUrl ? 'warning.dark' : 'warning.main'
+                                }
                               }}
                             >
                               <RssFeedIcon fontSize="small" />
@@ -267,7 +331,13 @@ export default function ClientsPage() {
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                spacing={2}
+                sx={{ mb: 2 }}
+              >
                 <Box>
                   <Typography variant="h6">{selectedClient?.name}</Typography>
                   <Typography color="text.secondary">{selectedClient?.notes}</Typography>
@@ -282,7 +352,9 @@ export default function ClientsPage() {
                 </Stack>
               </Stack>
 
-              <Typography variant="subtitle1" sx={{ mb: 2 }}>Mentions</Typography>
+              <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                Mentions
+              </Typography>
               {selectedClient && (
                 <Stack spacing={2}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -305,10 +377,42 @@ export default function ClientsPage() {
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Source</TableCell>
-                        <TableCell>Sentiment</TableCell>
-                        <TableCell>Date</TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={sortColumn === 'title'}
+                            direction={sortColumn === 'title' ? sortDirection : 'asc'}
+                            onClick={() => handleSort('title')}
+                          >
+                            Title
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={sortColumn === 'source'}
+                            direction={sortColumn === 'source' ? sortDirection : 'asc'}
+                            onClick={() => handleSort('source')}
+                          >
+                            Source
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={sortColumn === 'sentiment'}
+                            direction={sortColumn === 'sentiment' ? sortDirection : 'asc'}
+                            onClick={() => handleSort('sentiment')}
+                          >
+                            Sentiment
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={sortColumn === 'date'}
+                            direction={sortColumn === 'date' ? sortDirection : 'desc'}
+                            onClick={() => handleSort('date')}
+                          >
+                            Date
+                          </TableSortLabel>
+                        </TableCell>
                         <TableCell align="right">Actions</TableCell>
                       </TableRow>
                     </TableHead>
@@ -324,13 +428,23 @@ export default function ClientsPage() {
                               mention.title
                             )}
                           </TableCell>
-                          <TableCell>{mention.source || publicationList.find((p) => p.id === mention.publicationId)?.name}</TableCell>
                           <TableCell>
-                            <Chip label={mention.sentiment || 'N/A'} color={mention.sentiment === 'positive' ? 'success' : 'default'} size="small" />
+                            {mention.source ||
+                              publicationList.find((p) => p.id === mention.publicationId)?.name}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={mention.sentiment || 'N/A'}
+                              color={mention.sentiment === 'positive' ? 'success' : 'default'}
+                              size="small"
+                            />
                           </TableCell>
                           <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
                           <TableCell align="right">
-                            <IconButton size="small" onClick={() => handleDeleteMention(mention.id)}>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteMention(mention.id)}
+                            >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </TableCell>
@@ -338,7 +452,9 @@ export default function ClientsPage() {
                       ))}
                     </TableBody>
                   </Table>
-                  {clientMentions.length === 0 && <Typography color="text.secondary">No mentions match the filters.</Typography>}
+                  {clientMentions.length === 0 && (
+                    <Typography color="text.secondary">No mentions match the filters.</Typography>
+                  )}
                 </Stack>
               )}
             </CardContent>
