@@ -106,10 +106,10 @@ describe('recordMentions', () => {
     );
   });
 
-  test('skips duplicate mentions', () => {
+  test('skips duplicate mentions by URL', () => {
     runQuery.mockImplementation((sql) => {
-      if (sql.includes('SELECT link FROM mediaMentions')) {
-        return [{ link: 'https://example.com/article' }]; // Already exists
+      if (sql.includes('SELECT link, LOWER(TRIM(title))')) {
+        return [{ link: 'https://example.com/article', normalizedTitle: 'test article' }]; // Already exists
       }
       return [];
     });
@@ -122,6 +122,32 @@ describe('recordMentions', () => {
         source: 'example.com',
         clientId: 1,
         normalizedUrl: 'https://example.com/article'
+      }
+    ];
+
+    const created = recordMentions(results, 'new');
+
+    expect(created).toHaveLength(0);
+    expect(broadcastNewMention).not.toHaveBeenCalled();
+  });
+
+  test('skips duplicate mentions by title', () => {
+    runQuery.mockImplementation((sql) => {
+      if (sql.includes('SELECT link, LOWER(TRIM(title))')) {
+        // Return existing mention with same title but different URL
+        return [{ link: 'https://example.com/old-article', normalizedTitle: 'test article' }];
+      }
+      return [];
+    });
+
+    const results = [
+      {
+        title: 'Test Article', // Same title (case-insensitive)
+        url: 'https://example.com/new-article', // Different URL
+        snippet: 'Test snippet',
+        source: 'example.com',
+        clientId: 1,
+        normalizedUrl: 'https://example.com/new-article'
       }
     ];
 
@@ -184,7 +210,7 @@ describe('dedupeMentions', () => {
   test('removes duplicate mentions based on URL and clientId', () => {
     const results = [
       { normalizedUrl: 'https://example.com/article', clientId: 1, title: 'First' },
-      { normalizedUrl: 'https://example.com/article', clientId: 1, title: 'Duplicate' },
+      { normalizedUrl: 'https://example.com/article', clientId: 1, title: 'Duplicate URL' },
       { normalizedUrl: 'https://example.com/other', clientId: 1, title: 'Different URL' },
       { normalizedUrl: 'https://example.com/article', clientId: 2, title: 'Different client' }
     ];
@@ -193,7 +219,88 @@ describe('dedupeMentions', () => {
 
     expect(deduped).toHaveLength(3);
     expect(deduped[0].title).toBe('First');
-    expect(deduped.find((r) => r.title === 'Duplicate')).toBeUndefined();
+    expect(deduped.find((r) => r.title === 'Duplicate URL')).toBeUndefined();
+  });
+
+  test('removes duplicate mentions based on title and clientId', () => {
+    const results = [
+      {
+        normalizedUrl: 'https://example.com/article-v1',
+        clientId: 1,
+        title: 'Same Title Here'
+      },
+      {
+        normalizedUrl: 'https://example.com/article-v2',
+        clientId: 1,
+        title: 'Same Title Here'
+      },
+      {
+        normalizedUrl: 'https://example.com/other',
+        clientId: 1,
+        title: 'Different Title'
+      },
+      {
+        normalizedUrl: 'https://example.com/article-v3',
+        clientId: 2,
+        title: 'Same Title Here'
+      }
+    ];
+
+    const deduped = dedupeMentions(results);
+
+    expect(deduped).toHaveLength(3);
+    // First mention should be kept
+    expect(deduped[0].normalizedUrl).toBe('https://example.com/article-v1');
+    // Second mention with same title should be removed
+    expect(
+      deduped.find((r) => r.normalizedUrl === 'https://example.com/article-v2')
+    ).toBeUndefined();
+    // Different title should be kept
+    expect(deduped.find((r) => r.title === 'Different Title')).toBeDefined();
+    // Same title but different client should be kept
+    expect(deduped.find((r) => r.clientId === 2)).toBeDefined();
+  });
+
+  test('title comparison is case-insensitive', () => {
+    const results = [
+      { normalizedUrl: 'https://example.com/article-1', clientId: 1, title: 'Breaking News Today' },
+      { normalizedUrl: 'https://example.com/article-2', clientId: 1, title: 'BREAKING NEWS TODAY' },
+      { normalizedUrl: 'https://example.com/article-3', clientId: 1, title: 'breaking news today' }
+    ];
+
+    const deduped = dedupeMentions(results);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].normalizedUrl).toBe('https://example.com/article-1');
+  });
+
+  test('handles empty or null titles gracefully', () => {
+    const results = [
+      { normalizedUrl: 'https://example.com/article-1', clientId: 1, title: '' },
+      { normalizedUrl: 'https://example.com/article-2', clientId: 1, title: '' },
+      { normalizedUrl: 'https://example.com/article-3', clientId: 1, title: null },
+      { normalizedUrl: 'https://example.com/article-4', clientId: 1, title: 'Actual Title' }
+    ];
+
+    const deduped = dedupeMentions(results);
+
+    // Empty/null titles should not cause false deduplication - each URL is unique
+    expect(deduped).toHaveLength(4);
+  });
+
+  test('removes duplicates by either URL or title', () => {
+    const results = [
+      { normalizedUrl: 'https://example.com/article-1', clientId: 1, title: 'Original Article' },
+      { normalizedUrl: 'https://example.com/article-1', clientId: 1, title: 'Different Title' }, // Same URL
+      { normalizedUrl: 'https://example.com/article-2', clientId: 1, title: 'Original Article' } // Same title
+    ];
+
+    const deduped = dedupeMentions(results);
+
+    // Only the first mention should remain
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].normalizedUrl).toBe('https://example.com/article-1');
+    expect(deduped[0].title).toBe('Original Article');
   });
 
   test('handles empty array', () => {

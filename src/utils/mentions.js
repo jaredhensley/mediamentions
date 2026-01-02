@@ -76,14 +76,30 @@ function normalizeUrlForComparison(url) {
   }
 }
 
+/**
+ * Deduplicate mentions within a batch by URL or title
+ * Keeps the first occurrence when duplicates are found
+ * @param {Array} results - Array of normalized mention results
+ * @returns {Array} - Deduplicated results
+ */
 function dedupeMentions(results) {
-  const seen = new Set();
+  const seenUrls = new Set();
+  const seenTitles = new Set();
+
   return results.filter((result) => {
-    const key = `${result.normalizedUrl}-${result.clientId}`;
-    if (seen.has(key)) {
+    const urlKey = `url:${result.normalizedUrl}-${result.clientId}`;
+    const normalizedTitle = (result.title || '').toLowerCase().trim();
+    const titleKey = `title:${normalizedTitle}-${result.clientId}`;
+
+    // Check if we've seen this URL or title before for this client
+    if (seenUrls.has(urlKey) || (normalizedTitle && seenTitles.has(titleKey))) {
       return false;
     }
-    seen.add(key);
+
+    seenUrls.add(urlKey);
+    if (normalizedTitle) {
+      seenTitles.add(titleKey);
+    }
     return true;
   });
 }
