@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/dev.js",
+    "dev": "concurrently \"node src/dev.js\" \"cd client && npm run dev\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "dev:backend": "node src/dev.js",
+    "dev:frontend": "cd client && npm run dev",
     "scheduler": "node src/index.js",
     "scheduler:once": "node src/index.js --once",
     "test": "jest",
@@ -40,6 +42,7 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
     "globals": "^16.5.0",
     "husky": "^9.1.7",
