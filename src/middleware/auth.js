@@ -5,6 +5,25 @@ const { config } = require('../config');
 let authWarningLogged = false;
 
 /**
+ * Timing-safe API key comparison to prevent timing attacks
+ * @param {string} provided - The API key provided in the request
+ * @param {string} expected - The expected valid API key
+ * @returns {boolean} - True if keys match
+ */
+function isValidApiKey(provided, expected) {
+  if (!provided || !expected) return false;
+
+  // Keys must be same length for timing-safe comparison
+  if (provided.length !== expected.length) return false;
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Middleware to require API key authentication
  * If API_KEY is not configured, authentication is disabled (dev mode)
  * @param {Object} req - HTTP request object
@@ -25,7 +44,8 @@ function requireApiKey(req, res, next) {
     return;
   }
 
-  if (!apiKey || apiKey !== validApiKey) {
+  // Use timing-safe comparison to prevent timing attacks
+  if (!apiKey || !isValidApiKey(apiKey, validApiKey)) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Unauthorized: Invalid or missing API key' }));
     return;

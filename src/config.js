@@ -68,7 +68,16 @@ const config = {
       'pinterest.com',
       'snapchat.com',
       'threads.net'
-    ]
+    ],
+    // URL patterns that indicate listing/search/archive pages (not actual articles)
+    blockedUrlPatterns: [
+      /\/search(\?|$)/i, // Search pages
+      /\/category\//i, // Category archives
+      /[?&]page=/i, // Paginated listing pages
+      /[?&]cat=/i // Category filter params
+    ],
+    // Domains that are aggregators/directories, not news sources
+    blockedDomains: ['10times.com', 'researchgate.net']
   },
   verification: {
     // Rate limit between verification requests (ms)
@@ -106,6 +115,19 @@ const config = {
     fetchTimeoutMs: Number(process.env.RSS_FETCH_TIMEOUT_MS) || 30000,
     // Whether to run verification automatically after RSS polling
     autoVerify: process.env.RSS_AUTO_VERIFY !== 'false'
+  },
+  // Rate limiting configuration
+  rateLimit: {
+    // Rate limit for client mention exports
+    export: {
+      maxRequests: Number(process.env.RATE_LIMIT_EXPORT_MAX) || 5,
+      windowMs: Number(process.env.RATE_LIMIT_EXPORT_WINDOW_MS) || 60000
+    },
+    // Rate limit for admin exports (false positives, deleted mentions)
+    adminExport: {
+      maxRequests: Number(process.env.RATE_LIMIT_ADMIN_EXPORT_MAX) || 10,
+      windowMs: Number(process.env.RATE_LIMIT_ADMIN_EXPORT_WINDOW_MS) || 60000
+    }
   },
   // Site-specific handling for listing/index pages with card items
   // These sites have listing pages where client names appear in article cards
