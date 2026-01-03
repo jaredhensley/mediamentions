@@ -11,18 +11,23 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
   TableSortLabel,
+  Tabs,
   TextField,
   Tooltip,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useSearchParams } from 'react-router-dom';
 import {
   fetchClients,
@@ -37,6 +42,7 @@ import {
 import { Client, Mention, Publication } from '../data';
 import MentionFormModal, { MentionFormData } from '../components/MentionFormModal';
 import RssFeedModal from '../components/RssFeedModal';
+import MentionCard from '../components/MentionCard';
 import { formatDisplayDate } from '../utils/format';
 import { useToast } from '../hooks/useToast';
 
@@ -55,8 +61,11 @@ export default function ClientsPage() {
   const [rssModalOpen, setRssModalOpen] = useState(false);
   const [rssModalClient, setRssModalClient] = useState<Client | null>(null);
   const [clientForm, setClientForm] = useState({ name: '', notes: '' });
+  const [mobileTab, setMobileTab] = useState(0); // 0 = clients, 1 = mentions
   const [searchParams, setSearchParams] = useSearchParams();
   const { showError } = useToast();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     fetchClients()
@@ -186,6 +195,10 @@ export default function ClientsPage() {
         setSelectedClientId('');
         setSearchParams({}, { replace: true });
       }
+      // On mobile, go back to client list after deletion
+      if (isMobile) {
+        setMobileTab(0);
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete client');
     }
@@ -239,228 +252,327 @@ export default function ClientsPage() {
     }
   };
 
-  return (
-    <Stack spacing={3}>
-      <Typography variant="h4">Clients</Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Client list
-              </Typography>
-              <Stack spacing={2} sx={{ mb: 2 }}>
-                <TextField
-                  label="Client name"
-                  value={clientForm.name}
-                  onChange={(e) => setClientForm((prev) => ({ ...prev, name: e.target.value }))}
-                  fullWidth
-                />
-                <TextField
-                  label="Notes"
-                  value={clientForm.notes}
-                  onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  fullWidth
-                />
+  const handleSelectClient = (clientId: number) => {
+    setSelectedClientId(clientId);
+    setSearchParams({ clientId: String(clientId) }, { replace: true });
+    // On mobile, switch to mentions tab when client is selected
+    if (isMobile) {
+      setMobileTab(1);
+    }
+  };
+
+  // Client List component (used in both mobile and desktop)
+  const ClientListContent = (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Client list
+        </Typography>
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          <TextField
+            label="Client name"
+            value={clientForm.name}
+            onChange={(e) => setClientForm((prev) => ({ ...prev, name: e.target.value }))}
+            fullWidth
+            size={isMobile ? 'small' : 'medium'}
+          />
+          <TextField
+            label="Notes"
+            value={clientForm.notes}
+            onChange={(e) => setClientForm((prev) => ({ ...prev, notes: e.target.value }))}
+            fullWidth
+            size={isMobile ? 'small' : 'medium'}
+          />
+          <Button variant="contained" onClick={handleClientSave} disabled={!clientForm.name.trim()}>
+            Add client
+          </Button>
+        </Stack>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {clientList.map((client) => (
+              <TableRow
+                key={client.id}
+                hover
+                selected={client.id === selectedClientId}
+                sx={{ cursor: 'pointer' }}
+                onClick={() => handleSelectClient(client.id)}
+              >
+                <TableCell>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    width="100%"
+                  >
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <span>{client.name}</span>
+                      <Badge
+                        badgeContent={mentionCounts[client.id] || 0}
+                        color="primary"
+                        sx={{ ml: 1 }}
+                      />
+                    </Box>
+                    <Tooltip
+                      title={client.alertsRssFeedUrl ? 'RSS feed active' : 'Set up RSS feed'}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleRssIconClick(client, e)}
+                        sx={{
+                          color: client.alertsRssFeedUrl ? 'warning.main' : 'action.disabled',
+                          '&:hover': {
+                            color: client.alertsRssFeedUrl ? 'warning.dark' : 'warning.main'
+                          }
+                        }}
+                      >
+                        <RssFeedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
+  // Mentions content component
+  const MentionsContent = (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        {/* Mobile: Back button and client name */}
+        {isMobile && (
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <IconButton size="small" onClick={() => setMobileTab(0)}>
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h6" sx={{ flex: 1 }}>
+              {selectedClient?.name}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Desktop: Client header */}
+        {!isMobile && (
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={2}
+            sx={{ mb: 2 }}
+          >
+            <Box>
+              <Typography variant="h6">{selectedClient?.name}</Typography>
+              <Typography color="text.secondary">{selectedClient?.notes}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => setMentionModalOpen(true)}>
+                Add mention
+              </Button>
+              <Button variant="outlined" color="error" onClick={handleDeleteClient}>
+                Delete client
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>
+          Mentions
+        </Typography>
+        {selectedClient && (
+          <Stack spacing={2}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <Select
+                size="small"
+                value={sentimentFilter}
+                onChange={(e) => setSentimentFilter(e.target.value)}
+                displayEmpty
+                fullWidth={isMobile}
+              >
+                <MenuItem value="all">All sentiments</MenuItem>
+                <MenuItem value="positive">Positive</MenuItem>
+                <MenuItem value="neutral">Neutral</MenuItem>
+                <MenuItem value="negative">Negative</MenuItem>
+              </Select>
+              <Button variant="outlined" onClick={handleExport} fullWidth={isMobile}>
+                Export to Excel
+              </Button>
+            </Stack>
+
+            {/* Mobile: Action buttons */}
+            {isMobile && (
+              <Stack direction="row" spacing={1}>
                 <Button
-                  variant="contained"
-                  onClick={handleClientSave}
-                  disabled={!clientForm.name.trim()}
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setMentionModalOpen(true)}
+                  fullWidth
                 >
-                  Add client
+                  Add mention
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  onClick={handleDeleteClient}
+                  fullWidth
+                >
+                  Delete client
                 </Button>
               </Stack>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {clientList.map((client) => (
-                    <TableRow
-                      key={client.id}
-                      hover
-                      selected={client.id === selectedClientId}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setSelectedClientId(client.id);
-                        setSearchParams({ clientId: String(client.id) }, { replace: true });
-                      }}
-                    >
-                      <TableCell>
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          width="100%"
-                        >
-                          <Box display="flex" alignItems="center" gap={1.5}>
-                            <span>{client.name}</span>
-                            <Badge
-                              badgeContent={mentionCounts[client.id] || 0}
-                              color="primary"
-                              sx={{ ml: 1 }}
-                            />
-                          </Box>
-                          <Tooltip
-                            title={client.alertsRssFeedUrl ? 'RSS feed active' : 'Set up RSS feed'}
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleRssIconClick(client, e)}
-                              sx={{
-                                color: client.alertsRssFeedUrl ? 'warning.main' : 'action.disabled',
-                                '&:hover': {
-                                  color: client.alertsRssFeedUrl ? 'warning.dark' : 'warning.main'
-                                }
-                              }}
-                            >
-                              <RssFeedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                spacing={2}
-                sx={{ mb: 2 }}
-              >
-                <Box>
-                  <Typography variant="h6">{selectedClient?.name}</Typography>
-                  <Typography color="text.secondary">{selectedClient?.notes}</Typography>
-                </Box>
-                <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" onClick={() => setMentionModalOpen(true)}>
-                    Add mention
-                  </Button>
-                  <Button variant="outlined" color="error" onClick={handleDeleteClient}>
-                    Delete client
-                  </Button>
-                </Stack>
+            )}
+
+            {/* Mobile: Card-based view */}
+            {isMobile ? (
+              <Stack spacing={1.5}>
+                {clientMentions.map((mention) => (
+                  <MentionCard
+                    key={mention.id}
+                    mention={mention}
+                    sourceName={
+                      mention.source ||
+                      publicationList.find((p) => p.id === mention.publicationId)?.name
+                    }
+                    onDelete={handleDeleteMention}
+                    showSource
+                    showSentiment
+                  />
+                ))}
+                {clientMentions.length === 0 && (
+                  <Typography color="text.secondary">No mentions match the filters.</Typography>
+                )}
               </Stack>
-
-              <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                Mentions
-              </Typography>
-              {selectedClient && (
-                <Stack spacing={2}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Select
-                      size="small"
-                      value={sentimentFilter}
-                      onChange={(e) => setSentimentFilter(e.target.value)}
-                      displayEmpty
-                    >
-                      <MenuItem value="all">All sentiments</MenuItem>
-                      <MenuItem value="positive">Positive</MenuItem>
-                      <MenuItem value="neutral">Neutral</MenuItem>
-                      <MenuItem value="negative">Negative</MenuItem>
-                    </Select>
-                    <Button variant="outlined" onClick={handleExport}>
-                      Export to Excel
-                    </Button>
-                  </Stack>
-
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
+            ) : (
+              /* Desktop: Table view */
+              <>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortColumn === 'title'}
+                          direction={sortColumn === 'title' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('title')}
+                        >
+                          Title
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortColumn === 'source'}
+                          direction={sortColumn === 'source' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('source')}
+                        >
+                          Source
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortColumn === 'sentiment'}
+                          direction={sortColumn === 'sentiment' ? sortDirection : 'asc'}
+                          onClick={() => handleSort('sentiment')}
+                        >
+                          Sentiment
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortColumn === 'date'}
+                          direction={sortColumn === 'date' ? sortDirection : 'desc'}
+                          onClick={() => handleSort('date')}
+                        >
+                          Date
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {clientMentions.map((mention) => (
+                      <TableRow key={mention.id}>
                         <TableCell>
-                          <TableSortLabel
-                            active={sortColumn === 'title'}
-                            direction={sortColumn === 'title' ? sortDirection : 'asc'}
-                            onClick={() => handleSort('title')}
-                          >
-                            Title
-                          </TableSortLabel>
+                          {mention.link ? (
+                            <a href={mention.link} target="_blank" rel="noreferrer noopener">
+                              {mention.title}
+                            </a>
+                          ) : (
+                            mention.title
+                          )}
                         </TableCell>
                         <TableCell>
-                          <TableSortLabel
-                            active={sortColumn === 'source'}
-                            direction={sortColumn === 'source' ? sortDirection : 'asc'}
-                            onClick={() => handleSort('source')}
-                          >
-                            Source
-                          </TableSortLabel>
+                          {mention.source ||
+                            publicationList.find((p) => p.id === mention.publicationId)?.name}
                         </TableCell>
                         <TableCell>
-                          <TableSortLabel
-                            active={sortColumn === 'sentiment'}
-                            direction={sortColumn === 'sentiment' ? sortDirection : 'asc'}
-                            onClick={() => handleSort('sentiment')}
-                          >
-                            Sentiment
-                          </TableSortLabel>
+                          <Chip
+                            label={mention.sentiment || 'N/A'}
+                            color={mention.sentiment === 'positive' ? 'success' : 'default'}
+                            size="small"
+                          />
                         </TableCell>
-                        <TableCell>
-                          <TableSortLabel
-                            active={sortColumn === 'date'}
-                            direction={sortColumn === 'date' ? sortDirection : 'desc'}
-                            onClick={() => handleSort('date')}
-                          >
-                            Date
-                          </TableSortLabel>
+                        <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" onClick={() => handleDeleteMention(mention.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
-                        <TableCell align="right">Actions</TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {clientMentions.map((mention) => (
-                        <TableRow key={mention.id}>
-                          <TableCell>
-                            {mention.link ? (
-                              <a href={mention.link} target="_blank" rel="noreferrer noopener">
-                                {mention.title}
-                              </a>
-                            ) : (
-                              mention.title
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {mention.source ||
-                              publicationList.find((p) => p.id === mention.publicationId)?.name}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={mention.sentiment || 'N/A'}
-                              color={mention.sentiment === 'positive' ? 'success' : 'default'}
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell>{formatDisplayDate(mention.mentionDate)}</TableCell>
-                          <TableCell align="right">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDeleteMention(mention.id)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {clientMentions.length === 0 && (
-                    <Typography color="text.secondary">No mentions match the filters.</Typography>
-                  )}
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </TableBody>
+                </Table>
+                {clientMentions.length === 0 && (
+                  <Typography color="text.secondary">No mentions match the filters.</Typography>
+                )}
+              </>
+            )}
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <Stack spacing={isMobile ? 2 : 3}>
+      <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+        Clients
+      </Typography>
+
+      {/* Mobile: Tabbed view */}
+      {isMobile ? (
+        <>
+          <Tabs
+            value={mobileTab}
+            onChange={(_, newValue) => setMobileTab(newValue)}
+            variant="fullWidth"
+            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+          >
+            <Tab label="Clients" />
+            <Tab label="Mentions" disabled={!selectedClientId} />
+          </Tabs>
+          {mobileTab === 0 ? ClientListContent : MentionsContent}
+        </>
+      ) : (
+        /* Desktop: Side-by-side grid */
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            {ClientListContent}
+          </Grid>
+          <Grid item xs={12} md={8}>
+            {MentionsContent}
+          </Grid>
         </Grid>
-      </Grid>
+      )}
 
       <MentionFormModal
         open={mentionModalOpen}

@@ -5,6 +5,7 @@ import {
   Stack,
   Switch,
   Typography,
+  useMediaQuery,
   useTheme
 } from '@mui/material';
 import { Download } from '@mui/icons-material';
@@ -17,6 +18,7 @@ export default function SettingsPage() {
   const { toggle } = useColorMode();
   const theme = useTheme();
   const { showError } = useToast();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleDownloadFalsePositives = async () => {
     try {
@@ -35,14 +37,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <Stack spacing={4}>
+    <Stack spacing={isMobile ? 3 : 4}>
       <Stack spacing={2}>
-        <Typography variant="h4">Settings</Typography>
+        <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+          Settings
+        </Typography>
         <FormControlLabel
           control={<Switch checked={theme.palette.mode === 'dark'} onChange={toggle} />}
           label="Enable dark mode"
         />
-        <Typography color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           Theme preference is saved locally in your browser.
         </Typography>
       </Stack>
@@ -50,13 +54,17 @@ export default function SettingsPage() {
       <Divider />
 
       <Stack spacing={3}>
-        <Typography variant="h5">Admin Tools</Typography>
+        <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+          Admin Tools
+        </Typography>
 
         <PendingReviewList />
 
         <Stack spacing={1}>
-          <Typography variant="h6">False Positives Export</Typography>
-          <Typography color="text.secondary">
+          <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+            False Positives Export
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             Download a CSV file of all rejected mentions (verified = 0). These are mentions that
             failed verification.
           </Typography>
@@ -64,15 +72,18 @@ export default function SettingsPage() {
             variant="outlined"
             startIcon={<Download />}
             onClick={handleDownloadFalsePositives}
-            sx={{ alignSelf: 'flex-start' }}
+            fullWidth={isMobile}
+            sx={{ alignSelf: isMobile ? 'stretch' : 'flex-start' }}
           >
             Download False Positives CSV
           </Button>
         </Stack>
 
         <Stack spacing={1}>
-          <Typography variant="h6">Deleted Mentions Export</Typography>
-          <Typography color="text.secondary">
+          <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+            Deleted Mentions Export
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             Download a CSV file of all mentions that have been deleted. Use this to analyze patterns
             and improve filtering logic.
           </Typography>
@@ -80,7 +91,8 @@ export default function SettingsPage() {
             variant="outlined"
             startIcon={<Download />}
             onClick={handleDownloadDeletedMentions}
-            sx={{ alignSelf: 'flex-start' }}
+            fullWidth={isMobile}
+            sx={{ alignSelf: isMobile ? 'stretch' : 'flex-start' }}
           >
             Download Deleted Mentions CSV
           </Button>

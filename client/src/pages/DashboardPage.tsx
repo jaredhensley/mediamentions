@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Box,
   Button,
-  ButtonGroup,
   Card,
   CardContent,
   Checkbox,
@@ -18,8 +17,12 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -30,6 +33,7 @@ import { Client, Mention } from '../data';
 import { formatDisplayDate } from '../utils/format';
 import { useWebSocket, WebSocketMessage } from '../hooks/useWebSocket';
 import { useToast } from '../hooks/useToast';
+import MentionCard from '../components/MentionCard';
 
 type DateFilter = '1d' | '3d' | '1w' | '30d' | 'all' | 'custom';
 type SortColumn = 'client' | 'title' | 'date';
@@ -47,6 +51,8 @@ export default function DashboardPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const navigate = useNavigate();
   const { showError } = useToast();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Handle WebSocket messages for real-time updates
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
@@ -154,11 +160,11 @@ export default function DashboardPage() {
     });
   }, [sortedMentions, dateFilter, customStartDate, customEndDate]);
 
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = isMobile ? 5 : 10;
   const totalPages = Math.ceil(filteredMentions.length / ITEMS_PER_PAGE);
   const paginatedMentions = useMemo(
     () => filteredMentions.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
-    [filteredMentions, page]
+    [filteredMentions, page, ITEMS_PER_PAGE]
   );
 
   const todaysMentions = useMemo(
@@ -217,6 +223,21 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteMention = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this mention?')) return;
+    try {
+      await deleteMention(id);
+      setMentions((prev) => prev.filter((m) => m.id !== id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete mention');
+    }
+  };
+
   const verifiedCount = useMemo(() => mentions.filter((m) => m.verified === 1).length, [mentions]);
   const unverifiedCount = useMemo(
     () => mentions.filter((m) => m.verified === 0).length,
@@ -224,7 +245,7 @@ export default function DashboardPage() {
   );
 
   const quickStats = [
-    { label: 'Verified mentions', value: verifiedCount },
+    { label: 'Verified', value: verifiedCount },
     { label: 'False positives', value: unverifiedCount },
     { label: 'Today', value: todaysMentions.length }
   ];
@@ -274,40 +295,66 @@ export default function DashboardPage() {
   }, [sortedMentions, clientNameById]);
 
   return (
-    <Stack sx={{ height: 'calc(100vh - 112px)', overflow: 'hidden' }}>
-      <Typography variant="h4" sx={{ flexShrink: 0, mb: 1 }}>
+    <Stack
+      sx={{
+        height: isMobile ? 'auto' : 'calc(100vh - 112px)',
+        overflow: isMobile ? 'visible' : 'hidden'
+      }}
+    >
+      <Typography
+        variant="h4"
+        sx={{ flexShrink: 0, mb: 1, fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
+      >
         Dashboard
       </Typography>
+
+      {/* Quick Stats */}
       <Grid container spacing={1} sx={{ flexShrink: 0, mb: 1 }}>
         {quickStats.map((stat) => (
-          <Grid item xs={12} sm={6} md={3} key={stat.label}>
+          <Grid item xs={4} sm={6} md={3} key={stat.label}>
             <Card>
-              <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                <Typography variant="overline" sx={{ lineHeight: 1.2 }}>
+              <CardContent sx={{ py: 1, px: { xs: 1.5, sm: 2 }, '&:last-child': { pb: 1 } }}>
+                <Typography
+                  variant="overline"
+                  sx={{ lineHeight: 1.2, fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                >
                   {stat.label}
                 </Typography>
-                <Typography variant="h6">{stat.value}</Typography>
+                <Typography variant="h6" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                  {stat.value}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Grid container spacing={1} sx={{ flex: 1, minHeight: 0, height: '100%' }}>
-        <Grid item xs={12} md={7} sx={{ display: 'flex', minHeight: 0, maxHeight: '100%' }}>
+      <Grid
+        container
+        spacing={1}
+        sx={{ flex: isMobile ? 'none' : 1, minHeight: 0, height: isMobile ? 'auto' : '100%' }}
+      >
+        {/* Mentions List */}
+        <Grid
+          item
+          xs={12}
+          md={7}
+          sx={{ display: 'flex', minHeight: 0, maxHeight: isMobile ? 'none' : '100%' }}
+        >
           <Card
             sx={{
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
-              maxHeight: '100%',
+              maxHeight: isMobile ? 'none' : '100%',
               overflow: 'hidden'
             }}
           >
             <CardContent
               sx={{
                 py: 1.5,
+                px: { xs: 1.5, sm: 2 },
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
@@ -316,6 +363,7 @@ export default function DashboardPage() {
               }}
             >
               <Stack spacing={1} sx={{ flex: 1, minHeight: 0 }}>
+                {/* Header */}
                 <Box
                   display="flex"
                   justifyContent="space-between"
@@ -345,45 +393,29 @@ export default function DashboardPage() {
                   </Stack>
                 </Box>
 
+                {/* Date Filters */}
                 <Box display="flex" flexDirection="column" gap={1}>
-                  <ButtonGroup size="small" variant="outlined">
-                    <Button
-                      variant={dateFilter === '1d' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('1d')}
-                    >
-                      24h
-                    </Button>
-                    <Button
-                      variant={dateFilter === '3d' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('3d')}
-                    >
-                      3d
-                    </Button>
-                    <Button
-                      variant={dateFilter === '1w' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('1w')}
-                    >
-                      1w
-                    </Button>
-                    <Button
-                      variant={dateFilter === '30d' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('30d')}
-                    >
-                      30d
-                    </Button>
-                    <Button
-                      variant={dateFilter === 'all' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('all')}
-                    >
-                      All
-                    </Button>
-                    <Button
-                      variant={dateFilter === 'custom' ? 'contained' : 'outlined'}
-                      onClick={() => setDateFilter('custom')}
-                    >
-                      Custom
-                    </Button>
-                  </ButtonGroup>
+                  <ToggleButtonGroup
+                    size="small"
+                    value={dateFilter}
+                    exclusive
+                    onChange={(_, value) => value && setDateFilter(value)}
+                    sx={{
+                      flexWrap: 'wrap',
+                      '& .MuiToggleButton-root': {
+                        px: { xs: 1.5, sm: 2 },
+                        py: 0.5,
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }
+                    }}
+                  >
+                    <ToggleButton value="1d">24h</ToggleButton>
+                    <ToggleButton value="3d">3d</ToggleButton>
+                    <ToggleButton value="1w">1w</ToggleButton>
+                    <ToggleButton value="30d">30d</ToggleButton>
+                    <ToggleButton value="all">All</ToggleButton>
+                    <ToggleButton value="custom">Custom</ToggleButton>
+                  </ToggleButtonGroup>
 
                   {dateFilter === 'custom' && (
                     <Box display="flex" gap={1} flexWrap="wrap">
@@ -394,6 +426,7 @@ export default function DashboardPage() {
                         value={customStartDate}
                         onChange={(e) => setCustomStartDate(e.target.value)}
                         InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 140 }}
                       />
                       <TextField
                         label="End date"
@@ -402,11 +435,13 @@ export default function DashboardPage() {
                         value={customEndDate}
                         onChange={(e) => setCustomEndDate(e.target.value)}
                         InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 140 }}
                       />
                     </Box>
                   )}
                 </Box>
 
+                {/* Mentions Content */}
                 {filteredMentions.length === 0 ? (
                   <Typography color="text.secondary">
                     {mentions.length === 0
@@ -423,113 +458,133 @@ export default function DashboardPage() {
                       overflow: 'auto'
                     }}
                   >
-                    <Table size="small" stickyHeader>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell padding="checkbox">
-                            <Checkbox
-                              size="small"
-                              checked={
-                                filteredMentions.length > 0 &&
-                                filteredMentions.every((m) => selectedIds.has(m.id))
-                              }
-                              indeterminate={
-                                filteredMentions.some((m) => selectedIds.has(m.id)) &&
-                                !filteredMentions.every((m) => selectedIds.has(m.id))
-                              }
-                              onChange={(e) => handleSelectAll(e.target.checked)}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ px: 1 }}>
-                            <TableSortLabel
-                              active={sortColumn === 'client'}
-                              direction={sortColumn === 'client' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('client')}
-                            >
-                              Client
-                            </TableSortLabel>
-                          </TableCell>
-                          <TableCell sx={{ px: 1 }}>
-                            <TableSortLabel
-                              active={sortColumn === 'title'}
-                              direction={sortColumn === 'title' ? sortDirection : 'asc'}
-                              onClick={() => handleSort('title')}
-                            >
-                              Title
-                            </TableSortLabel>
-                          </TableCell>
-                          <TableCell sx={{ px: 1 }}>
-                            <TableSortLabel
-                              active={sortColumn === 'date'}
-                              direction={sortColumn === 'date' ? sortDirection : 'desc'}
-                              onClick={() => handleSort('date')}
-                            >
-                              Date
-                            </TableSortLabel>
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
+                    {/* Mobile: Card-based view */}
+                    {isMobile ? (
+                      <Stack spacing={1.5}>
                         {paginatedMentions.map((mention) => (
-                          <TableRow key={mention.id} selected={selectedIds.has(mention.id)}>
+                          <MentionCard
+                            key={mention.id}
+                            mention={mention}
+                            clientName={clientNameById[mention.clientId]}
+                            selected={selectedIds.has(mention.id)}
+                            onSelect={handleSelectOne}
+                            onDelete={handleDeleteMention}
+                            onClientClick={(clientId) => navigate(`/clients?clientId=${clientId}`)}
+                            showClient
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      /* Desktop: Table view */
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
                             <TableCell padding="checkbox">
                               <Checkbox
                                 size="small"
-                                checked={selectedIds.has(mention.id)}
-                                onChange={(e) => handleSelectOne(mention.id, e.target.checked)}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ px: 1 }}>
-                              <Chip
-                                label={
-                                  clientNameById[mention.clientId] || `Client #${mention.clientId}`
+                                checked={
+                                  filteredMentions.length > 0 &&
+                                  filteredMentions.every((m) => selectedIds.has(m.id))
                                 }
-                                size="small"
-                                variant="outlined"
-                                onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
-                                sx={{ cursor: 'pointer' }}
+                                indeterminate={
+                                  filteredMentions.some((m) => selectedIds.has(m.id)) &&
+                                  !filteredMentions.every((m) => selectedIds.has(m.id))
+                                }
+                                onChange={(e) => handleSelectAll(e.target.checked)}
                               />
                             </TableCell>
                             <TableCell sx={{ px: 1 }}>
-                              <Box sx={{ maxWidth: 280 }}>
-                                <Tooltip title={mention.title}>
-                                  <Typography
-                                    variant="body2"
-                                    sx={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                  >
-                                    {mention.title}
-                                  </Typography>
-                                </Tooltip>
-                                {mention.link && (
-                                  <Link
-                                    href={mention.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    sx={{
-                                      fontSize: '0.75rem',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 0.5
-                                    }}
-                                  >
-                                    View article <OpenInNewIcon sx={{ fontSize: 12 }} />
-                                  </Link>
-                                )}
-                              </Box>
+                              <TableSortLabel
+                                active={sortColumn === 'client'}
+                                direction={sortColumn === 'client' ? sortDirection : 'asc'}
+                                onClick={() => handleSort('client')}
+                              >
+                                Client
+                              </TableSortLabel>
                             </TableCell>
-                            <TableCell sx={{ px: 1, whiteSpace: 'nowrap' }}>
-                              <Typography variant="body2" color="text.secondary" noWrap>
-                                {formatDisplayDate(mention.mentionDate)}
-                              </Typography>
+                            <TableCell sx={{ px: 1 }}>
+                              <TableSortLabel
+                                active={sortColumn === 'title'}
+                                direction={sortColumn === 'title' ? sortDirection : 'asc'}
+                                onClick={() => handleSort('title')}
+                              >
+                                Title
+                              </TableSortLabel>
+                            </TableCell>
+                            <TableCell sx={{ px: 1 }}>
+                              <TableSortLabel
+                                active={sortColumn === 'date'}
+                                direction={sortColumn === 'date' ? sortDirection : 'desc'}
+                                onClick={() => handleSort('date')}
+                              >
+                                Date
+                              </TableSortLabel>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHead>
+                        <TableBody>
+                          {paginatedMentions.map((mention) => (
+                            <TableRow key={mention.id} selected={selectedIds.has(mention.id)}>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  size="small"
+                                  checked={selectedIds.has(mention.id)}
+                                  onChange={(e) => handleSelectOne(mention.id, e.target.checked)}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ px: 1 }}>
+                                <Chip
+                                  label={
+                                    clientNameById[mention.clientId] ||
+                                    `Client #${mention.clientId}`
+                                  }
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => navigate(`/clients?clientId=${mention.clientId}`)}
+                                  sx={{ cursor: 'pointer' }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ px: 1 }}>
+                                <Box sx={{ maxWidth: 280 }}>
+                                  <Tooltip title={mention.title}>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      {mention.title}
+                                    </Typography>
+                                  </Tooltip>
+                                  {mention.link && (
+                                    <Link
+                                      href={mention.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      sx={{
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.5
+                                      }}
+                                    >
+                                      View article <OpenInNewIcon sx={{ fontSize: 12 }} />
+                                    </Link>
+                                  )}
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ px: 1, whiteSpace: 'nowrap' }}>
+                                <Typography variant="body2" color="text.secondary" noWrap>
+                                  {formatDisplayDate(mention.mentionDate)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
                     {totalPages > 1 && (
                       <Box display="flex" justifyContent="center" pt={1}>
                         <Pagination
@@ -546,7 +601,9 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={5} sx={{ display: 'flex', minHeight: 300 }}>
+
+        {/* Chart */}
+        <Grid item xs={12} md={5} sx={{ display: 'flex', minHeight: isMobile ? 280 : 300 }}>
           <Card
             variant="outlined"
             sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'inherit' }}
@@ -557,6 +614,7 @@ export default function DashboardPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 py: 1.5,
+                px: { xs: 1, sm: 2 },
                 minHeight: 0,
                 overflow: 'hidden'
               }}
@@ -569,7 +627,12 @@ export default function DashboardPage() {
                   data={chartData}
                   keys={publicationKeys}
                   indexBy="client"
-                  margin={{ top: 10, right: 100, bottom: 50, left: 60 }}
+                  margin={{
+                    top: 10,
+                    right: isMobile ? 20 : 100,
+                    bottom: 50,
+                    left: isMobile ? 40 : 60
+                  }}
                   padding={0.3}
                   valueScale={{ type: 'linear' }}
                   indexScale={{ type: 'band', round: true }}
@@ -587,7 +650,7 @@ export default function DashboardPage() {
                     tickSize: 5,
                     tickPadding: 5,
                     tickRotation: -25,
-                    truncateTickAt: 12
+                    truncateTickAt: isMobile ? 8 : 12
                   }}
                   axisLeft={{
                     tickSize: 5,
@@ -597,30 +660,34 @@ export default function DashboardPage() {
                   labelSkipWidth={12}
                   labelSkipHeight={12}
                   labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-                  legends={[
-                    {
-                      dataFrom: 'keys',
-                      anchor: 'bottom-right',
-                      direction: 'column',
-                      justify: false,
-                      translateX: 100,
-                      translateY: 0,
-                      itemsSpacing: 2,
-                      itemWidth: 90,
-                      itemHeight: 20,
-                      itemDirection: 'left-to-right',
-                      itemOpacity: 0.85,
-                      symbolSize: 12,
-                      effects: [
-                        {
-                          on: 'hover',
-                          style: {
-                            itemOpacity: 1
+                  legends={
+                    isMobile
+                      ? []
+                      : [
+                          {
+                            dataFrom: 'keys',
+                            anchor: 'bottom-right',
+                            direction: 'column',
+                            justify: false,
+                            translateX: 100,
+                            translateY: 0,
+                            itemsSpacing: 2,
+                            itemWidth: 90,
+                            itemHeight: 20,
+                            itemDirection: 'left-to-right',
+                            itemOpacity: 0.85,
+                            symbolSize: 12,
+                            effects: [
+                              {
+                                on: 'hover',
+                                style: {
+                                  itemOpacity: 1
+                                }
+                              }
+                            ]
                           }
-                        }
-                      ]
-                    }
-                  ]}
+                        ]
+                  }
                   tooltip={({ id, value, color, indexValue }) => (
                     <Box
                       sx={{
